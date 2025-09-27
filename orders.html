@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders - Fine Graphics</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+
+    /* Top Navigation Bar */
+    header {
+      background: #007bff;
+      color: white;
+      padding: 15px;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    header .title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: bold;
+    }
+
+    .nav-btn {
+      background: white;
+      color: #007bff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .nav-btn:hover { background: #e6e6e6; }
+
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .order-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #ddd;
+      padding: 15px 0;
+    }
+
+    .order-left {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    .order-item img {
+      width: 100px;
+      height: 100px;
+      border-radius: 10px;
+      margin-right: 20px;
+      object-fit: cover;
+    }
+
+    .details h2 { margin: 5px 0; font-size: 18px; }
+    .details p { margin: 5px 0; color: #333; font-size: 14px; }
+
+    /* Status styling */
+    .status {
+      font-size: 14px;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 6px;
+      text-align: center;
+      min-width: 100px;
+    }
+    .status.pending { background: #dbaa08; color: white; }
+    .status.progress { background: #055ebd; color: white; }
+    .status.completed { background: #28a745; color: white; }
+
+    .empty { text-align: center; font-size: 18px; margin: 30px 0; color: #555; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <button onclick="window.location.href='index.html'" class="nav-btn">🏠 Home</button>
+    <div class="title">My Orders</div>
+    <button onclick="window.location.href='cart.html'" class="nav-btn">🛒 Cart</button>
+  </header>
+
+  <div class="container" id="ordersContainer">
+    <p class="empty">Loading your orders...</p>
+  </div>
+
+  <script>
+    // ✅ Detect current user
+    let currentUser = localStorage.getItem("currentUser");
+    try {
+      let parsed = JSON.parse(currentUser);
+      currentUser = parsed.username || parsed.email || parsed;
+    } catch {}
+
+    if (!currentUser) {
+      alert("Please login first!");
+      window.location.href = "login.html";
+    }
+
+    let ordersKey = "orders_" + currentUser;
+    let orders = JSON.parse(localStorage.getItem(ordersKey)) || [];
+
+    let ordersContainer = document.getElementById("ordersContainer");
+
+    if (orders.length === 0) {
+      ordersContainer.innerHTML = "<p class='empty'>You have no orders yet.</p>";
+    } else {
+      ordersContainer.innerHTML = "";
+      orders.forEach(order => {
+        let statusClass = "pending";
+        if (order.status === "In Progress") statusClass = "progress";
+        else if (order.status === "Completed") statusClass = "completed";
+
+        ordersContainer.innerHTML += `
+          <div class="order-item">
+            <div class="order-left">
+              <img src="${order.image}" alt="${order.name}">
+              <div class="details">
+                <h2>${order.name}</h2>
+                <p>Price: ₹${order.price}</p>
+                <p>Quantity: ${order.quantity}</p>
+                <p>Date: ${order.date}</p>
+              </div>
+            </div>
+            <div class="status ${statusClass}">${order.status}</div>
+          </div>
+        `;
+      });
+    }
+  </script>
+
+</body>
+</html>

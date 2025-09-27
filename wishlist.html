@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Wishlist - Fine Graphics</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 20px;
+      background: #007bff;
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: bold;
+      flex: 1;
+      text-align: center;
+    }
+
+    .nav-btn {
+      background: white;
+      color: #007bff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .nav-btn:hover { background: #e6e6e6; }
+
+    h2 { text-align: center; margin: 20px 0; }
+
+    .wishlist {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 15px;
+      text-align: center;
+      position: relative;
+    }
+
+    .card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .btn {
+      margin: 5px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100px;
+      color: white;
+    }
+
+    .btn-cart { background: #ffc107; color: black; }
+    .btn-order { background: #28a745; }
+    .btn-remove { background: #dc3545; }
+
+    .empty {
+      text-align: center;
+      font-size: 18px;
+      margin-top: 50px;
+      color: gray;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <button onclick="window.location.href='index.html'" class="nav-btn">🏠 Home</button>
+    <div class="logo">Fine Graphics</div>
+    <button onclick="window.location.href='cart.html'" id="cartLink" class="nav-btn">🛒 Cart (0)</button>
+  </header>
+
+  <h2>My Wishlist ❤</h2>
+  <div class="wishlist" id="wishlistContainer"></div>
+  <p class="empty" id="emptyMsg">Your wishlist is empty.</p>
+
+  <script>
+    let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+    let cartKey = currentUser ? "cart_" + (currentUser.username || currentUser.email) : "cart_guest";
+    let wishlistKey = currentUser ? "wishlist_" + (currentUser.username || currentUser.email) : "wishlist_guest";
+
+    let cart = JSON.parse(localStorage.getItem(cartKey)) || [];
+    let wishlist = JSON.parse(localStorage.getItem(wishlistKey)) || [];
+
+    function renderWishlist() {
+      const container = document.getElementById("wishlistContainer");
+      const emptyMsg = document.getElementById("emptyMsg");
+
+      if (wishlist.length === 0) {
+        container.innerHTML = "";
+        emptyMsg.style.display = "block";
+        return;
+      }
+
+      emptyMsg.style.display = "none";
+      container.innerHTML = "";
+      wishlist.forEach((item, i) => {
+        container.innerHTML += `
+          <div class="card">
+            <img src="${item.image}" alt="${item.name}">
+            <h3>${item.name}</h3>
+            <p>₹${item.price}</p>
+            <button class="btn btn-cart" onclick="addToCart(${i})">Add to Cart</button>
+            <button class="btn btn-order" onclick="orderNow(${i})">Order Now</button>
+            <button class="btn btn-remove" onclick="removeFromWishlist(${i})">Remove</button>
+          </div>
+        `;
+      });
+    }
+
+    function addToCart(index) {
+      let item = wishlist[index];
+      let found = cart.find(c => c.name === item.name);
+      if (found) { found.quantity++; }
+      else { cart.push({ ...item, quantity: 1 }); }
+      saveCart();
+      alert(item.name + " added to cart!");
+    }
+
+    function orderNow(index) {
+      let item = wishlist[index];
+      let checkoutKey = currentUser ? "checkout_" + (currentUser.username || currentUser.email) : "checkout_guest";
+      localStorage.setItem(checkoutKey, JSON.stringify({ items: [{ ...item, quantity: 1 }] }));
+      window.location.href = "pay.html";
+    }
+
+    function removeFromWishlist(index) {
+      wishlist.splice(index, 1);
+      saveWishlist();
+      renderWishlist();
+    }
+
+    function saveCart() {
+      localStorage.setItem(cartKey, JSON.stringify(cart));
+      updateCartCount();
+    }
+
+    function saveWishlist() {
+      localStorage.setItem(wishlistKey, JSON.stringify(wishlist));
+    }
+
+    function updateCartCount() {
+      let totalQty = cart.reduce((sum, c) => sum + c.quantity, 0);
+      document.getElementById("cartLink").textContent = '🛒 Cart (' + totalQty + ')';
+    }
+
+    renderWishlist();
+    updateCartCount();
+  </script>
+
+</body>
+</html>

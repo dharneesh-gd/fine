@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Fine Graphics</title>
+  <style>
+    body { font-family: Arial; background: #f9f9f9; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .form-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); width: 350px; }
+    h2 { text-align: center; color: #007bff; }
+    input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; }
+    button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    p { text-align: center; margin-top: 10px; }
+    a { color: #007bff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="form-box">
+    <h2>Register</h2>
+    <div style="background:#fff3cd; color:#856404; padding:8px; border-radius:5px; margin-bottom:10px; text-align:center; font-weight:bold; font-size:14px;">
+      ⚠ Service is available only in <b>Tirupur</b>.
+    </div>
+    <input type="text" id="fname" placeholder="First Name" required>
+    <input type="text" id="lname" placeholder="Last Name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="text" id="username" placeholder="Username" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <input type="password" id="cpassword" placeholder="Confirm Password" required>
+    <button onclick="register()">Register</button>
+    <p>Already have an account? <a href="login.html">Login</a></p>
+  </div>
+
+  <script>
+  async function register() {
+    let fname = document.getElementById("fname").value.trim();
+    let lname = document.getElementById("lname").value.trim();
+    let email = document.getElementById("email").value.trim();
+    let username = document.getElementById("username").value.trim();
+    let password = document.getElementById("password").value;
+    let cpassword = document.getElementById("cpassword").value;
+
+    if (!fname || !lname || !email || !username || !password || !cpassword) {
+      alert("Please fill in all fields.");
+      return;
+    }
+    if (password !== cpassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+
+    try {
+      let res = await fetch(" https://unmutual-interposable-rhea.ngrok-free.dev/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fname, lname, email, username, password })
+      });
+
+      let data = await res.json();
+      if (data.success) {
+        alert("Registration successful! Please login.");
+        window.location.href = "login.html";
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (err) {
+      alert("Server error. Please try again.");
+      console.error(err);
+    }
+  }
+  </script>
+</body>
+</html>

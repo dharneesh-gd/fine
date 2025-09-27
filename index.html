@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fine Graphics - Store</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 25px;
+      background: #007bff;
+      color: white;
+    }
+
+    .logo { font-size: 24px; font-weight: bold; }
+
+    .search-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      margin: 0 20px;
+    }
+
+    .search-container input {
+      width: 60%;
+      padding: 8px;
+      border: none;
+      border-radius: 5px;
+    }
+
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      position: relative;
+    }
+
+    .header-icons a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    /* Profile Dropdown */
+    .profile-container { position: relative; display: inline-block; }
+
+    .profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .profile-pic {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid white;
+    }
+
+    .dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      background: white;
+      color: black;
+      min-width: 200px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      border-radius: 8px;
+      z-index: 1000;
+      padding: 15px;
+    }
+
+    .dropdown img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: block;
+      margin: auto;
+    }
+
+    .dropdown h4 { text-align: center; margin: 10px 0 5px; }
+
+    .dropdown a, .dropdown label {
+      display: block;
+      text-align: center;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 5px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .dropdown button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 10px;
+      border: none;
+      background: #dc3545;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .profile-container:hover .dropdown { display: block; }
+
+    h2 { text-align: center; margin: 20px 0; }
+
+    .designs {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 15px;
+      text-align: center;
+      position: relative;
+    }
+
+    .card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      width: 100px;
+    }
+
+    .btn-cart { background: #ffc107; color: black; }
+    .btn-order { background: #28a745; }
+
+    /* Wishlist Button */
+    .wishlist-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .wishlist-btn.liked { color: red; }
+
+    /* Modal */
+    #imgModal {
+      display:none;
+      position:fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.8);
+      z-index:2000;
+      justify-content:center;
+      align-items:center;
+    }
+    #imgModal img {
+      max-width:80%; max-height:80%;
+      border:5px solid white; border-radius:10px;
+    }
+    #imgModal span {
+      position:absolute; top:20px; right:30px;
+      font-size:40px; color:white; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">Fine Graphics</div>
+
+    <div class="search-container">
+      <input type="text" id="search" placeholder="Search designs...">
+    </div>
+
+    <div class="header-icons">
+      <a href="wishlist.html" id="wishlistLink">❤ Wishlist (0)</a>
+      <a href="cart.html" id="cartLink">🛒 Cart (0)</a>
+
+      <div class="profile-container">
+        <div class="profile-btn">
+          <img src="https://via.placeholder.com/30" alt="Profile" class="profile-pic" id="profilePicSmall">
+          <span id="username">Profile</span>
+        </div>
+
+        <div class="dropdown">
+          <img src="https://via.placeholder.com/60" alt="Profile" id="profilePicLarge">
+          <h4 id="profileName">User</h4>
+          <a href="profile.html">Update Profile</a>
+          <a href="orders.html">My Orders</a>
+          <button onclick="logout()">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <h2>Our Designs</h2>
+  <div class="designs" id="designsContainer"></div>
+
+  <!-- Modal for image preview -->
+  <div id="imgModal">
+    <span onclick="closeImg()">&times;</span>
+    <img id="modalImg" src="">
+  </div>
+
+  <script>
+  let designs = JSON.parse(localStorage.getItem("designs")) || [
+    { name: "Design 1", price: 100, image: "https://via.placeholder.com/200" },
+    { name: "Design 2", price: 200, image: "https://via.placeholder.com/200" }
+  ];
+
+  let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+  let cartKey = currentUser ? "cart_" + (currentUser.username || currentUser.email) : "cart_guest";
+  let wishlistKey = currentUser ? "wishlist_" + (currentUser.username || currentUser.email) : "wishlist_guest";
+
+  let cart = JSON.parse(localStorage.getItem(cartKey)) || [];
+  let wishlist = JSON.parse(localStorage.getItem(wishlistKey)) || [];
+
+  function renderDesigns(list = designs) {
+    const container = document.getElementById("designsContainer");
+    container.innerHTML = "";
+    list.forEach((d, i) => {
+      let liked = wishlist.some(w => w.name === d.name);
+      container.innerHTML += `
+        <div class="card">
+          <button class="wishlist-btn ${liked ? 'liked' : ''}" onclick="toggleWishlist(${i})">❤</button>
+          <img src="${d.image}" alt="${d.name}" onclick="openImg('${d.image}')">
+          <h3>${d.name}</h3>
+          <p>₹${d.price}</p>
+          <button class="btn btn-cart" onclick="addToCart(${i})">Add to Cart</button>
+          <button class="btn btn-order" onclick="orderNow(${i})">Order Now</button>
+        </div>`;
+    });
+  }
+
+  function addToCart(index) {
+    let item = designs[index];
+    let found = cart.find(c => c.name === item.name);
+    if (found) { found.quantity++; }
+    else { cart.push({ ...item, quantity: 1 }); }
+    saveCart();
+  }
+
+  function orderNow(index) {
+    let item = designs[index];
+    let checkoutKey = currentUser ? "checkout_" + (currentUser.username || currentUser.email) : "checkout_guest";
+    localStorage.setItem(checkoutKey, JSON.stringify({ items: [{ ...item, quantity: 1 }] }));
+    window.location.href = "checkout.html";  // ✅ redirect to checkout instead of pay.html
+  }
+
+  function toggleWishlist(index) {
+    let item = designs[index];
+    let found = wishlist.find(w => w.name === item.name);
+    if (found) {
+      wishlist = wishlist.filter(w => w.name !== item.name);
+    } else {
+      wishlist.push(item);
+    }
+    saveWishlist();
+    renderDesigns();
+  }
+
+  function saveCart() {
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+    updateCartCount();
+  }
+
+  function saveWishlist() {
+    localStorage.setItem(wishlistKey, JSON.stringify(wishlist));
+    updateWishlistCount();
+  }
+
+  function updateCartCount() {
+    let totalQty = cart.reduce((sum, c) => sum + c.quantity, 0);
+    document.getElementById("cartLink").textContent = '🛒 Cart (' + totalQty + ')';
+  }
+
+  function updateWishlistCount() {
+    document.getElementById("wishlistLink").textContent = '❤ Wishlist (' + wishlist.length + ')';
+  }
+
+  function loadUser() {
+    currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+    if (currentUser) {
+      document.getElementById("username").textContent = currentUser.username || "Profile";
+      document.getElementById("profileName").textContent = (currentUser.fname || "") + " " + (currentUser.lname || "");
+      if (currentUser.profilePic) {
+        document.getElementById("profilePicSmall").src = currentUser.profilePic;
+        document.getElementById("profilePicLarge").src = currentUser.profilePic;
+      }
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("currentUser");
+    window.location.href = "login.html";
+  }
+
+  document.getElementById("search").addEventListener("input", function() {
+    const query = this.value.toLowerCase();
+    const filtered = designs.filter(d => d.name.toLowerCase().includes(query));
+    renderDesigns(filtered);
+  });
+
+  // Modal functions
+  function openImg(src) {
+    document.getElementById("modalImg").src = src;
+    document.getElementById("imgModal").style.display = "flex";
+  }
+  function closeImg() {
+    document.getElementById("imgModal").style.display = "none";
+  }
+
+  renderDesigns();
+  updateCartCount();
+  updateWishlistCount();
+  loadUser();
+  </script>
+
+</body>
+</html>
