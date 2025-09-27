@@ -1,36 +1,23 @@
-from flask import Flask, render_template, request, redirect, jsonify
+from flask import Flask, request, jsonify, send_from_directory
+import os
 
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__)
 
 # Temporary "database"
 users = []
 
+# Serve index.html as homepage
 @app.route('/')
 def home():
-    return render_template("index.html")   # open home page
+    return send_from_directory('.', 'index.html')
 
-@app.route('/register-page')
-def register_page():
-    return render_template("reg.html")
-
-@app.route('/login-page')
-def login_page():
-    return render_template("login.html")
-
-@app.route('/profile-page')
-def profile_page():
-    return render_template("profile.html")
-
-@app.route('/customer-page')
-def customer_page():
-    return render_template("customerdetails.html")
-
-@app.route('/cart-page')
-def cart_page():
-    return render_template("cart.html")
+# Serve all HTML files from root (fine folder)
+@app.route('/<path:filename>')
+def serve_html(filename):
+    return send_from_directory('.', filename)
 
 # =============================
-# YOUR OLD API ROUTES BELOW
+# API ROUTES
 # =============================
 
 @app.route('/register', methods=['POST'])
@@ -72,4 +59,5 @@ def customers():
     return jsonify(users)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
