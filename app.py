@@ -5,7 +5,7 @@ app = Flask(__name__, template_folder="templates")
 # Temporary "database"
 users = []
 
-@app.route('/',methods=['GET','HEAD'])
+@app.route('/')
 def home():
     return render_template("index.html")   # open home page
 
