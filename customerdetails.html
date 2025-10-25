@@ -60,35 +60,47 @@
   </div>
 
   <script>
-    async function loadCustomers() {
-      try {
-        let response = await fetch("https://unmutual-interposable-rhea.ngrok-free.dev/customers");
-        let users = await response.json();
+  async function loadCustomers() {
+    try {
+      // Use your local Flask server instead of external URL
+      let response = await fetch("/admin/users");
+      let data = await response.json();
 
-        let tbody = document.querySelector("#customersTable tbody");
-        tbody.innerHTML = ""; // clear previous rows
-
-        users.forEach(u => {
-          let row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${u.fname}</td>
-            <td>${u.lname}</td>
-            <td>${u.email}</td>
-            <td>${u.username}</td>
-            <td>${u.address || "-"}</td>
-            <td>${u.district || "-"}</td>
-            <td>${u.mobile || "-"}</td>
-          `;
-          tbody.appendChild(row);
-        });
-      } catch (err) {
-        console.error("Error loading customers:", err);
-        alert("Failed to load customer details.");
+      if (!data.success) {
+        throw new Error(data.message || "Failed to load customers");
       }
-    }
 
-    // Run function when page loads
-    window.onload = loadCustomers;
-  </script>
+      let users = data.users;
+      let tbody = document.querySelector("#customersTable tbody");
+      tbody.innerHTML = ""; // clear previous rows
+
+      if (users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">No customers found</td></tr>`;
+        return;
+      }
+
+      users.forEach(u => {
+        let row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${u.fname || "-"}</td>
+          <td>${u.lname || "-"}</td>
+          <td>${u.email || "-"}</td>
+          <td>${u.username || "-"}</td>
+          <td>${u.address || "-"}</td>
+          <td>${u.district || "-"}</td>
+          <td>${u.mobile || "-"}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    } catch (err) {
+      console.error("Error loading customers:", err);
+      let tbody = document.querySelector("#customersTable tbody");
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Error loading customer details: ${err.message}</td></tr>`;
+    }
+  }
+
+  // Run function when page loads
+  window.onload = loadCustomers;
+</script>
 </body>
 </html>

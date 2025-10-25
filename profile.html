@@ -19,18 +19,20 @@
       padding: 30px; 
       border-radius: 10px; 
       box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
-      width: 350px; 
+      width: 400px; 
     }
     h2 { 
       text-align: center; 
       color: #007bff; 
+      margin-bottom: 20px;
     }
     input, select { 
       width: 100%; 
-      padding: 10px; 
-      margin: 10px 0; 
+      padding: 12px; 
+      margin: 8px 0; 
       border: 1px solid #ccc; 
       border-radius: 5px; 
+      box-sizing: border-box;
     }
     button { 
       width: 100%; 
@@ -41,6 +43,7 @@
       border-radius: 8px; 
       cursor: pointer; 
       font-size: 16px;
+      margin-top: 10px;
     }
     button:hover { 
       background: #0056b3; 
@@ -48,45 +51,80 @@
     .profile-preview {
       display: block;
       margin: 10px auto;
-      width: 80px;
-      height: 80px;
+      width: 100px;
+      height: 100px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid #007bff;
+      border: 3px solid #007bff;
+    }
+    .file-input-container {
+      text-align: center;
+      margin: 15px 0;
+    }
+    .back-btn {
+      background: #6c757d;
+      margin-top: 10px;
+    }
+    .back-btn:hover {
+      background: #545b62;
     }
   </style>
 </head>
 <body>
   <div class="box">
     <h2>Update Profile</h2>
-    <img id="previewPic" src="https://via.placeholder.com/80" alt="Profile Preview" class="profile-preview">
-    <input type="file" id="profilePicInput" accept="image/*">
+    
+    <div style="text-align: center;">
+      <img id="previewPic" src="https://via.placeholder.com/100" alt="Profile Preview" class="profile-preview">
+      <div class="file-input-container">
+        <input type="file" id="profilePicInput" accept="image/*">
+        <small>Click to upload profile picture</small>
+      </div>
+    </div>
+    
+    <input type="text" id="fname" placeholder="First Name" readonly>
+    <input type="text" id="lname" placeholder="Last Name" readonly>
+    <input type="email" id="email" placeholder="Email" readonly>
+    <input type="text" id="username" placeholder="Username" readonly>
     <input type="text" id="address" placeholder="Address">
-    <input type="text" id="mobile" placeholder="Mobile Number">
+    <input type="text" id="mobile" placeholder="Mobile Number" maxlength="10">
     <select id="district">
       <option value="">Select District</option>
       <option value="Tirupur">Tirupur</option>
       <option value="Coimbatore">Coimbatore</option>
       <option value="Erode">Erode</option>
+      <option value="Chennai">Chennai</option>
+      <option value="Bangalore">Bangalore</option>
     </select>
-    <button onclick="saveProfile()">Save</button>
+    
+    <button onclick="saveProfile()">Save Profile</button>
+    <button class="back-btn" onclick="goBack()">Back to Home</button>
   </div>
 
   <script>
     let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+    let profilePicBase64 = "";
 
     if (!currentUser) {
       alert("Please login first!");
       window.location.href = "login.html";
     }
 
-    // Pre-fill existing values
-    if (currentUser) {
-      document.getElementById("address").value = currentUser.address || "";
-      document.getElementById("mobile").value = currentUser.mobile || "";
-      document.getElementById("district").value = currentUser.district || "";
-      if (currentUser.profilePic) {
-        document.getElementById("previewPic").src = currentUser.profilePic;
+    // Load current user data
+    function loadUserProfile() {
+      if (currentUser) {
+        document.getElementById("fname").value = currentUser.fname || "";
+        document.getElementById("lname").value = currentUser.lname || "";
+        document.getElementById("email").value = currentUser.email || "";
+        document.getElementById("username").value = currentUser.username || "";
+        document.getElementById("address").value = currentUser.address || "";
+        document.getElementById("mobile").value = currentUser.mobile || "";
+        document.getElementById("district").value = currentUser.district || "";
+        
+        // Set profile picture
+        if (currentUser.profile_pic && currentUser.profile_pic !== "https://via.placeholder.com/80") {
+          document.getElementById("previewPic").src = currentUser.profile_pic;
+        }
       }
     }
 
@@ -94,9 +132,22 @@
     document.getElementById("profilePicInput").addEventListener("change", function() {
       let file = this.files[0];
       if (file) {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert('Please select an image file');
+          return;
+        }
+        
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+          alert('Image size should be less than 2MB');
+          return;
+        }
+        
         let reader = new FileReader();
         reader.onload = function(e) {
-          document.getElementById("previewPic").src = e.target.result;
+          profilePicBase64 = e.target.result;
+          document.getElementById("previewPic").src = profilePicBase64;
         };
         reader.readAsDataURL(file);
       }
@@ -107,42 +158,87 @@
       let mobile = document.getElementById("mobile").value.trim();
       let district = document.getElementById("district").value;
 
-      if (!address || !mobile || !district) {
-        alert("Please fill all fields.");
+      // Validation
+      if (!address) {
+        alert("Please enter your address.");
         return;
       }
 
-      // Update local currentUser object
-      currentUser.address = address;
-      currentUser.mobile = mobile;
-      currentUser.district = district;
+      if (!mobile) {
+        alert("Please enter your mobile number.");
+        return;
+      }
 
-      // ✅ Send updated details to backend
+      if (!/^\d{10}$/.test(mobile)) {
+        alert("Please enter a valid 10-digit mobile number.");
+        return;
+      }
+
+      if (!district) {
+        alert("Please select your district.");
+        return;
+      }
+
+      // Show loading state
+      const saveBtn = document.querySelector('button[onclick="saveProfile()"]');
+      saveBtn.textContent = 'Saving...';
+      saveBtn.disabled = true;
+
       try {
-        let res = await fetch("https://unmutual-interposable-rhea.ngrok-free.dev/updateProfile", {
+        // Prepare data for backend
+        const updateData = {
+          username: currentUser.username,
+          address: address,
+          mobile: mobile,
+          district: district,
+          profilePic: profilePicBase64 || currentUser.profile_pic || ""
+        };
+
+        console.log("Sending profile update:", updateData);
+
+        const response = await fetch("/updateProfile", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(currentUser)
+          headers: { 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(updateData)
         });
 
-        if (!res.ok) {
-          alert("Error updating profile!");
-          return;
+        const result = await response.json();
+
+        if (response.ok) {
+          // Update local storage with new data
+          const updatedUser = {
+            ...currentUser,
+            address: result.address,
+            mobile: result.mobile,
+            district: result.district,
+            profile_pic: result.profile_pic
+          };
+          
+          localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+          
+          alert("✅ Profile updated successfully!");
+          window.location.href = "index.html";
+        } else {
+          alert("❌ Error: " + (result.error || "Failed to update profile"));
         }
-
-        let updatedUser = await res.json();
-
-        // ✅ Save updated user locally
-        localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-
-        alert("Profile updated successfully!");
-        window.location.href = "index.html";
-
-      } catch (err) {
-        console.error("Error:", err);
-        alert("Server error while saving profile!");
+      } catch (error) {
+        console.error("Profile update error:", error);
+        alert("⚠ Network error. Please check your connection and try again.");
+      } finally {
+        // Reset button state
+        saveBtn.textContent = 'Save Profile';
+        saveBtn.disabled = false;
       }
     }
+
+    function goBack() {
+      window.location.href = "index.html";
+    }
+
+    // Load profile when page loads
+    loadUserProfile();
   </script>
 </body>
 </html>
