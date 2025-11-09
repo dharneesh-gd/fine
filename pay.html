@@ -573,8 +573,7 @@ async function handleOrderSave() {
     }
 }
 // Remove purchased items from cart via backend - IMPROVED
-// Remove purchased items from cart via backend - COMPLETE VERSION
-// Remove purchased items from cart via backend - COMPLETE VERSION
+// Remove purchased items from cart via backend - FIXED FOR RENDER
 async function removePurchasedItemsFromCart() {
     try {
         if (!currentUser || !checkout || !checkout.items) {
@@ -594,30 +593,17 @@ async function removePurchasedItemsFromCart() {
             design_width: item.design_width || 0,
             design_height: item.design_height || 0,
             custom_requirements: item.custom_requirements || '',
-            // NEW customization fields - INCLUDING ALL FIELDS
+            // NEW customization fields
             gender: item.gender || '',
             tshirt_color: item.tshirt_color || '',
             tshirt_size: item.tshirt_size || '',
-            tshirt_type: item.tshirt_type || '',
-            // Additional fields
-            front_width: item.front_width || 0,
-            front_height: item.front_height || 0,
-            front_position_x: item.front_position_x || 50,
-            front_position_y: item.front_position_y || 50,
-            front_rotation: item.front_rotation || 0,
-            back_width: item.back_width || 0,
-            back_height: item.back_height || 0,
-            back_position_x: item.back_position_x || 50,
-            back_position_y: item.back_position_y || 50,
-            back_rotation: item.back_rotation || 0
+            tshirt_type: item.tshirt_type || ''
         }));
         
         console.log("🗑️ Requesting backend to remove purchased items:", purchasedItems);
 
-        // Use Render backend URL
-        const API_BASE_URL = window.location.origin;
-        
-        const response = await fetch(`${API_BASE_URL}/removeFromCart`, {
+        // FIX: Use relative URL instead of hardcoded localhost
+        const response = await fetch('/removeFromCart', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -774,6 +760,7 @@ function debugCheckoutData() {
 // debugCheckoutData();
 // Handle order confirmation - DEBUG VERSION
 // Handle order confirmation - FIXED VERSION
+// Handle order confirmation - FIXED FOR RENDER
 async function handleOrderSave() {
     try {
         console.log("🟢 handleOrderSave() triggered");
@@ -791,35 +778,26 @@ async function handleOrderSave() {
         paidBtn.disabled = true;
         paidBtn.textContent = "💾 Saving Order...";
 
-        // Debug: Check what fields are actually available in checkout items
-        console.log("🔍 Available fields in first checkout item:", Object.keys(checkout.items[0]));
-
         // Build the order data with ALL customization fields
         const orderData = {
             username: username,
-            items: checkout.items.map(item => {
-                // Create a clean item object with all possible fields
-                const orderItem = {
-                    name: item.name || "",
-                    price: parseFloat(item.price) || 0,
-                    quantity: parseInt(item.quantity) || 1,
-                    image: item.image || "",
-                    // Existing customization fields
-                    placement_position: item.placement_position || "",
-                    design_side: item.design_side || "front",
-                    design_width: parseInt(item.design_width) || 0,
-                    design_height: parseInt(item.design_height) || 0,
-                    custom_requirements: item.custom_requirements || "",
-                    // NEW customization fields
-                    gender: item.gender || "",
-                    tshirt_color: item.tshirt_color || "",
-                    tshirt_size: item.tshirt_size || "",
-                    tshirt_type: item.tshirt_type || ""
-                };
-
-                console.log(`📦 Order item prepared:`, orderItem);
-                return orderItem;
-            }),
+            items: checkout.items.map(item => ({
+                name: item.name,
+                price: parseFloat(item.price) || 0,
+                quantity: parseInt(item.quantity) || 1,
+                image: item.image || "",
+                // Existing customization fields
+                placement_position: item.placement_position || "",
+                design_side: item.design_side || "front",
+                design_width: parseInt(item.design_width) || 0,
+                design_height: parseInt(item.design_height) || 0,
+                custom_requirements: item.custom_requirements || "",
+                // NEW customization fields
+                gender: item.gender || "",
+                tshirt_color: item.tshirt_color || "",
+                tshirt_size: item.tshirt_size || "",
+                tshirt_type: item.tshirt_type || ""
+            })),
             subtotal: subtotal,
             tax: tax,
             total: total
@@ -827,7 +805,7 @@ async function handleOrderSave() {
 
         console.log("📦 Sending order to backend with items:", orderData.items);
 
-        // STEP 1: First save the order
+        // FIX: Use relative URL instead of hardcoded localhost
         const response = await fetch("/saveOrder", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
