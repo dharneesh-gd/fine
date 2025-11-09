@@ -2,8 +2,9 @@ from flask import Flask, request, jsonify, send_from_directory
 import sqlite3
 import os
 import time
+import random
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -42,7 +43,7 @@ def init_users_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
             
-            # Cart table
+            # Cart table - UPDATED WITH CUSTOMIZATION FIELDS
             cur.execute("""CREATE TABLE IF NOT EXISTS user_cart (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT,
@@ -50,6 +51,11 @@ def init_users_db():
                 price REAL,
                 quantity INTEGER,
                 image_url TEXT,
+                placement_position TEXT DEFAULT '',
+                design_side TEXT DEFAULT 'front',
+                design_width INTEGER DEFAULT 0,
+                design_height INTEGER DEFAULT 0,
+                custom_requirements TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (username) REFERENCES users (username)
             )""")
@@ -88,7 +94,7 @@ def init_orders_db():
             conn = sqlite3.connect(ORDERS_DB)
             cur = conn.cursor()
             
-            # Orders table
+            # Orders table - UPDATED WITH CUSTOMIZATION FIELDS
             cur.execute("""CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT,
@@ -96,6 +102,11 @@ def init_orders_db():
                 price REAL,
                 quantity INTEGER,
                 image_url TEXT,
+                placement_position TEXT DEFAULT '',
+                design_side TEXT DEFAULT 'front',
+                design_width INTEGER DEFAULT 0,
+                design_height INTEGER DEFAULT 0,
+                custom_requirements TEXT DEFAULT '',
                 order_date TEXT,
                 status TEXT DEFAULT 'Pending',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -164,10 +175,37 @@ def init_admin_db():
                 print(f"💥 Failed to initialize admin database after {max_retries} attempts: {e}")
                 return False
 
-def init_designs_db():
-    """Initialize designs database with simple structure - GUARANTEED WORKING VERSION"""
+def update_designs_schema():
+    """Update designs table to include width and height columns"""
     try:
-        # Remove existing database file to ensure clean creation
+        conn = sqlite3.connect(DESIGNS_DB)
+        cur = conn.cursor()
+        
+        # Check if width and height columns exist
+        cur.execute("PRAGMA table_info(designs)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        # Add width column if it doesn't exist
+        if 'width' not in columns:
+            cur.execute("ALTER TABLE designs ADD COLUMN width INTEGER DEFAULT 0")
+            print("✅ Added width column to designs table")
+        
+        # Add height column if it doesn't exist
+        if 'height' not in columns:
+            cur.execute("ALTER TABLE designs ADD COLUMN height INTEGER DEFAULT 0")
+            print("✅ Added height column to designs table")
+        
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"💥 Error updating designs schema: {str(e)}")
+        return False
+
+def init_designs_db():
+    """Initialize designs database with preview images support - UPDATED WITH DIMENSIONS"""
+    try:
         if os.path.exists(DESIGNS_DB):
             os.remove(DESIGNS_DB)
             print(f"🗑 Removed old designs database: {DESIGNS_DB}")
@@ -175,11 +213,13 @@ def init_designs_db():
         conn = sqlite3.connect(DESIGNS_DB)
         cur = conn.cursor()
         
-        # Simple designs table with single image - FORCE CREATE
+        # Main designs table with single primary image - UPDATED WITH DIMENSIONS
         cur.execute("""CREATE TABLE designs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             price REAL NOT NULL,
+            width INTEGER DEFAULT 0,
+            height INTEGER DEFAULT 0,
             tags TEXT,
             description TEXT,
             image_data TEXT,
@@ -187,34 +227,139 @@ def init_designs_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""")
         
-        print("🔄 Adding sample designs...")
-        sample_designs = [
-            ("Business Card Premium", 399.00, "business,professional,card", "Professional business card design with modern layout"),
-            ("Flyer Design", 599.00, "marketing,flyer,promotional", "Eye-catching flyer design for promotions"),
-            ("Logo Design", 1299.00, "branding,logo,custom", "Custom logo creation for your brand"),
-            ("Brochure Design", 899.00, "marketing,brochure,print", "Tri-fold brochure design"),
-            ("Social Media Post", 299.00, "social-media,digital,post", "Engaging social media graphics")
-        ]
+        # Preview images table for multiple preview images
+        cur.execute("""CREATE TABLE design_previews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            design_id INTEGER,
+            preview_data TEXT,
+            preview_type TEXT,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (design_id) REFERENCES designs (id) ON DELETE CASCADE
+        )""")
         
-        for name, price, tags, description in sample_designs:
+        print("🔄 Adding sample designs WITH DIMENSIONS...")
+        # Sample designs with dimensions (width, height, calculated price = width × height × 10)
+        sample_designs = [
+            ("Business Card Premium", 8, 5, "business,professional,card", "Professional business card design with modern layout"),
+            ("Flyer Design", 21, 15, "marketing,flyer,promotional", "Eye-catching flyer design for promotions"),
+            ("Logo Design", 10, 10, "branding,logo,custom", "Custom logo creation for your brand"),
+            ("Brochure Design", 30, 21, "marketing,brochure,print", "Tri-fold brochure design"),
+            ("Social Media Post", 12, 12, "social-media,digital,post", "Engaging social media graphics")
+        ]
+
+        for name, width, height, tags, description in sample_designs:
             try:
-                # Using placeholder image
+                # Calculate price automatically: width × height × 10
+                price = width * height * 10
                 placeholder_image = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
-                cur.execute("INSERT INTO designs (name, price, tags, description, image_data, image_type) VALUES (?, ?, ?, ?, ?, ?)",
-                           (name, price, tags, description, placeholder_image, "image/png"))
-                print(f"✅ Added sample design: {name}")
+                cur.execute("INSERT INTO designs (name, price, width, height, tags, description, image_data, image_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                           (name, price, width, height, tags, description, placeholder_image, "image/png"))
+                design_id = cur.lastrowid
+                print(f"✅ Added sample design: {name} - {width}cm × {height}cm = ₹{price}")
+                
             except Exception as e:
-                print(f"⚠ Failed to insert sample design {name}: {e}")
+                print(f"⚠ Failed to insert sample design {name}: {e}")     
         
         conn.commit()
         conn.close()
-        print("✅ Designs database initialized successfully!")
+        print("✅ Designs database WITH DIMENSIONS initialized successfully!")
         return True
         
     except Exception as e:
         print(f"💥 Designs database error: {e}")
         return False
 
+# Add this function to update the orders table schema
+def update_orders_schema():
+    """Update orders table to include ALL customization fields"""
+    try:
+        conn = sqlite3.connect(ORDERS_DB)
+        cur = conn.cursor()
+        
+        # Check current columns
+        cur.execute("PRAGMA table_info(orders)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        # Add new columns if they don't exist
+        new_columns = [
+            # Existing customization fields
+            ('tshirt_color', 'TEXT DEFAULT "white"'),
+            ('front_width', 'INTEGER DEFAULT 0'),
+            ('front_height', 'INTEGER DEFAULT 0'),
+            ('front_position_x', 'INTEGER DEFAULT 50'),
+            ('front_position_y', 'INTEGER DEFAULT 50'),
+            ('front_rotation', 'INTEGER DEFAULT 0'),
+            ('back_width', 'INTEGER DEFAULT 0'),
+            ('back_height', 'INTEGER DEFAULT 0'),
+            ('back_position_x', 'INTEGER DEFAULT 50'),
+            ('back_position_y', 'INTEGER DEFAULT 50'),
+            ('back_rotation', 'INTEGER DEFAULT 0'),
+            ('design_side', 'TEXT DEFAULT "front"'),
+            # New customization fields
+            ('gender', 'TEXT DEFAULT ""'),
+            ('tshirt_size', 'TEXT DEFAULT ""'),
+            ('tshirt_type', 'TEXT DEFAULT ""')
+        ]
+        
+        for col_name, col_type in new_columns:
+            if col_name not in columns:
+                cur.execute(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Added {col_name} column to orders table")
+        
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"💥 Error updating orders schema: {str(e)}")
+        return False
+# Add this function to update user_cart table schema
+def update_cart_schema():
+    """Update user_cart table to include ALL customization fields"""
+    try:
+        conn = sqlite3.connect(USERS_DB)
+        cur = conn.cursor()
+        
+        # Check current columns
+        cur.execute("PRAGMA table_info(user_cart)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        # Add new columns if they don't exist
+        new_columns = [
+            # Existing customization fields
+            ('tshirt_color', 'TEXT DEFAULT "white"'),
+            ('front_width', 'INTEGER DEFAULT 0'),
+            ('front_height', 'INTEGER DEFAULT 0'),
+            ('front_position_x', 'INTEGER DEFAULT 50'),
+            ('front_position_y', 'INTEGER DEFAULT 50'),
+            ('front_rotation', 'INTEGER DEFAULT 0'),
+            ('back_width', 'INTEGER DEFAULT 0'),
+            ('back_height', 'INTEGER DEFAULT 0'),
+            ('back_position_x', 'INTEGER DEFAULT 50'),
+            ('back_position_y', 'INTEGER DEFAULT 50'),
+            ('back_rotation', 'INTEGER DEFAULT 0'),
+            ('design_side', 'TEXT DEFAULT "front"'),
+            # New customization fields
+            ('gender', 'TEXT DEFAULT ""'),
+            ('tshirt_size', 'TEXT DEFAULT ""'),
+            ('tshirt_type', 'TEXT DEFAULT ""')
+        ]
+        
+        for col_name, col_type in new_columns:
+            if col_name not in columns:
+                cur.execute(f"ALTER TABLE user_cart ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Added {col_name} column to user_cart table")
+        
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"💥 Error updating cart schema: {str(e)}")
+        return False
+    
+# Update the init_databases function to include schema updates
 def init_databases():
     """Initialize all databases - FIXED VERSION"""
     print("🔄 Initializing databases with new filenames...")
@@ -237,6 +382,12 @@ def init_databases():
             print(f"❌ Failed to initialize {db_name} database!")
             all_success = False
     
+    # Update schemas after initialization
+    print("🔄 Updating database schemas...")
+    update_designs_schema()
+    update_orders_schema()
+    update_cart_schema()
+    
     if all_success:
         print("🎉 All databases initialization completed!")
     else:
@@ -244,69 +395,68 @@ def init_databases():
     
     return all_success
 
-# Add this route to reset and recreate the designs database
-@app.route('/admin/reset-designs-db', methods=['POST'])
-def reset_designs_db():
-    """Reset designs database (for development only) - FIXED VERSION"""
+@app.route('/removeFromCart', methods=['POST'])
+def remove_from_cart():
+    """Remove specific items from user's cart - FLEXIBLE VERSION"""
     try:
-        # Remove existing designs database file
-        if os.path.exists(DESIGNS_DB):
-            os.remove(DESIGNS_DB)
-            print(f"🗑 Removed existing designs database: {DESIGNS_DB}")
+        data = request.get_json()
+        username = data.get('username')
+        items_to_remove = data.get('items', [])
         
-        # Reinitialize designs database
-        success = init_designs_db()
+        print(f"🛒 REMOVE FROM CART: {username}, removing {len(items_to_remove)} items")
         
-        if success:
-            return jsonify({"success": True, "message": "Designs database reset successfully"})
-        else:
-            return jsonify({"success": False, "message": "Failed to reset designs database"}), 500
-            
+        if not username:
+            return jsonify({"success": False, "message": "Username required"}), 400
+        
+        conn = sqlite3.connect(USERS_DB)
+        cur = conn.cursor()
+        
+        removed_count = 0
+        for item in items_to_remove:
+            try:
+                # First try exact match with all customization fields
+                cur.execute("""DELETE FROM user_cart 
+                              WHERE username=? AND design_name=?
+                              AND placement_position=? AND design_side=?
+                              AND design_width=? AND design_height=?
+                              AND custom_requirements=?""",
+                            (username, 
+                             item.get('name'), 
+                             item.get('placement_position', ''),
+                             item.get('design_side', 'front'),
+                             item.get('design_width', 0),
+                             item.get('design_height', 0),
+                             item.get('custom_requirements', '')))
+                
+                rows_affected = cur.rowcount
+                
+                # If no exact match found, try with just name and basic fields (fallback)
+                if rows_affected == 0:
+                    print(f"🔄 No exact match found for {item.get('name')}, trying fallback match...")
+                    cur.execute("""DELETE FROM user_cart 
+                                  WHERE username=? AND design_name=?
+                                  AND quantity=?""",
+                                (username, 
+                                 item.get('name'),
+                                 item.get('quantity', 1)))
+                    rows_affected = cur.rowcount
+                
+                removed_count += rows_affected
+                print(f"📝 Removed {rows_affected} items for: {item.get('name')}")
+                
+            except Exception as e:
+                print(f"⚠ Failed to remove cart item {item}: {e}")
+                continue
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"✅ REMOVED FROM CART: {removed_count} items for {username}")
+        return jsonify({"success": True, "message": f"Removed {removed_count} items from cart", "removed_count": removed_count})
+        
     except Exception as e:
-        print(f"💥 RESET DESIGNS DB ERROR: {str(e)}")
+        print(f"💥 REMOVE FROM CART ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-# Add this debug route to check database status
-@app.route('/debug/databases')
-def debug_databases():
-    """Debug all databases status"""
-    databases_info = {}
-    
-    # Check each database
-    databases = {
-        "users": USERS_DB,
-        "orders": ORDERS_DB,
-        "admin": ADMIN_DB,
-        "designs": DESIGNS_DB
-    }
-    
-    for db_name, db_file in databases.items():
-        try:
-            db_exists = os.path.exists(db_file)
-            tables = []
-            
-            if db_exists:
-                conn = sqlite3.connect(db_file)
-                cur = conn.cursor()
-                cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-                tables = [table[0] for table in cur.fetchall()]
-                conn.close()
-            
-            databases_info[db_name] = {
-                "file": db_file,
-                "exists": db_exists,
-                "tables": tables
-            }
-            
-        except Exception as e:
-            databases_info[db_name] = {
-                "file": db_file,
-                "exists": False,
-                "error": str(e)
-            }
-    
-    return jsonify(databases_info)
-
 # ==================== SERVE STATIC FILES ====================
 
 @app.route('/')
@@ -577,7 +727,7 @@ def get_existing_wishlist(username):
         return []
     
 def sync_cart_to_db(username, cart_items):
-    """Sync cart data to database"""
+    """Sync cart data to database WITH CUSTOMIZATION FIELDS"""
     try:
         conn = sqlite3.connect(USERS_DB)
         cur = conn.cursor()
@@ -585,14 +735,20 @@ def sync_cart_to_db(username, cart_items):
         # Clear existing cart for this user
         cur.execute("DELETE FROM user_cart WHERE username=?", (username,))
         
-        # Save new cart items
+        # Save new cart items WITH CUSTOMIZATION FIELDS
         saved_count = 0
         for item in cart_items:
             try:
-                cur.execute("""INSERT INTO user_cart (username, design_name, price, quantity, image_url) 
-                              VALUES (?, ?, ?, ?, ?)""",
+                cur.execute("""INSERT INTO user_cart (username, design_name, price, quantity, image_url, 
+                              placement_position, design_side, design_width, design_height, custom_requirements) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                             (username, item.get('name'), float(item.get('price', 0)), 
-                             int(item.get('quantity', 1)), item.get('image', '')))
+                             int(item.get('quantity', 1)), item.get('image', ''),
+                             item.get('placement_position', ''), 
+                             item.get('design_side', 'front'),
+                             int(item.get('design_width', 0)),
+                             int(item.get('design_height', 0)),
+                             item.get('custom_requirements', '')))
                 saved_count += 1
             except Exception as e:
                 print(f"⚠ Failed to save cart item {item}: {e}")
@@ -641,9 +797,9 @@ def sync_wishlist_to_db(username, wishlist_items):
 
 @app.route('/getUserData/<username>')
 def get_user_data(username):
-    """Get both cart and wishlist data for a user"""
+    """Get both cart and wishlist data for a user WITH CUSTOMIZATION FIELDS"""
     try:
-        # Get cart data
+        # Get cart data WITH CUSTOMIZATION FIELDS
         cart_conn = sqlite3.connect(USERS_DB)
         cart_cur = cart_conn.cursor()
         cart_cur.execute("SELECT * FROM user_cart WHERE username=?", (username,))
@@ -656,7 +812,12 @@ def get_user_data(username):
                 "name": item[2],
                 "price": float(item[3]),
                 "quantity": item[4],
-                "image": item[5]
+                "image": item[5],
+                "placement_position": item[6] if len(item) > 6 else '',
+                "design_side": item[7] if len(item) > 7 else 'front',
+                "design_width": item[8] if len(item) > 8 else 0,
+                "design_height": item[9] if len(item) > 9 else 0,
+                "custom_requirements": item[10] if len(item) > 10 else ''
             })
         
         # Get wishlist data
@@ -706,14 +867,20 @@ def save_cart():
         # Clear existing cart for this user
         cur.execute("DELETE FROM user_cart WHERE username=?", (username,))
         
-        # Save new cart items
+        # Save new cart items WITH CUSTOMIZATION FIELDS
         saved_count = 0
         for item in cart_items:
             try:
-                cur.execute("""INSERT INTO user_cart (username, design_name, price, quantity, image_url) 
-                              VALUES (?, ?, ?, ?, ?)""",
+                cur.execute("""INSERT INTO user_cart (username, design_name, price, quantity, image_url,
+                              placement_position, design_side, design_width, design_height, custom_requirements) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                             (username, item.get('name'), float(item.get('price', 0)), 
-                             int(item.get('quantity', 1)), item.get('image', '')))
+                             int(item.get('quantity', 1)), item.get('image', ''),
+                             item.get('placement_position', ''), 
+                             item.get('design_side', 'front'),
+                             int(item.get('design_width', 0)),
+                             int(item.get('design_height', 0)),
+                             item.get('custom_requirements', '')))
                 saved_count += 1
             except Exception as e:
                 print(f"⚠ Failed to save cart item {item}: {e}")
@@ -745,7 +912,12 @@ def get_cart(username):
                 "name": item[2],
                 "price": float(item[3]),
                 "quantity": item[4],
-                "image": item[5]
+                "image": item[5],
+                "placement_position": item[6] if len(item) > 6 else '',
+                "design_side": item[7] if len(item) > 7 else 'front',
+                "design_width": item[8] if len(item) > 8 else 0,
+                "design_height": item[9] if len(item) > 9 else 0,
+                "custom_requirements": item[10] if len(item) > 10 else ''
             })
         
         print(f"📦 CART RETRIEVED: {username} - {len(cart_list)} items")
@@ -843,96 +1015,265 @@ def get_wishlist(username):
 
 @app.route('/saveOrder', methods=['POST'])
 def save_order():
-    """Save order to separate orders database"""
+    """Save order to database with all customization fields - IMPROVED VERSION"""
     try:
-        data = request.get_json()
-        print(f"📦 ORDER SAVE REQUEST: {data}")
-        
+        print("📦 [saveOrder] Request received")
+
+        data = request.get_json(force=True)
+        print(f"🧾 Incoming data keys: {list(data.keys())}")
+
         if not data:
             return jsonify({"success": False, "message": "No data received"}), 400
-            
+
         username = data.get("username")
         items = data.get("items", [])
-        
-        if not username:
-            return jsonify({"success": False, "message": "Username is required"}), 400
-            
-        if not items:
-            return jsonify({"success": False, "message": "No items in order"}), 400
+        subtotal = float(data.get("subtotal", 0))
+        tax = float(data.get("tax", 0))
+        total = float(data.get("total", 0))
 
+        if not username or not items:
+            return jsonify({"success": False, "message": "Invalid order data"}), 400
+
+        import random, time
+        order_id = f"ORD{int(time.time())}{random.randint(1000,9999)}"
         order_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         conn = sqlite3.connect(ORDERS_DB)
         cur = conn.cursor()
-        
+
+        # ✅ Ensure the base table exists with all required columns
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id TEXT,
+                username TEXT,
+                design_name TEXT,
+                price REAL,
+                quantity INTEGER,
+                image_url TEXT,
+                placement_position TEXT DEFAULT '',
+                design_side TEXT DEFAULT 'front',
+                design_width INTEGER DEFAULT 0,
+                design_height INTEGER DEFAULT 0,
+                custom_requirements TEXT DEFAULT '',
+                order_date TEXT,
+                status TEXT DEFAULT 'Ordered',
+                subtotal REAL DEFAULT 0,
+                tax REAL DEFAULT 0,
+                total REAL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                -- New customization fields
+                gender TEXT DEFAULT '',
+                tshirt_color TEXT DEFAULT '',
+                tshirt_size TEXT DEFAULT '',
+                tshirt_type TEXT DEFAULT ''
+            )
+        """)
+
+        # ✅ Check for missing columns and add them
+        cur.execute("PRAGMA table_info(orders)")
+        existing_columns = [c[1] for c in cur.fetchall()]
+
+        needed_columns = {
+            "gender": "TEXT DEFAULT ''",
+            "tshirt_color": "TEXT DEFAULT ''", 
+            "tshirt_size": "TEXT DEFAULT ''",
+            "tshirt_type": "TEXT DEFAULT ''"
+        }
+
+        for col, col_type in needed_columns.items():
+            if col not in existing_columns:
+                alter_sql = f"ALTER TABLE orders ADD COLUMN {col} {col_type}"
+                cur.execute(alter_sql)
+                print(f"🧩 Added missing column '{col}'")
+
+        # ✅ Insert each item into the table with ALL customization fields
         saved_count = 0
         for item in items:
             try:
-                cur.execute("""INSERT INTO orders 
-                               (username, design_name, price, quantity, image_url, order_date, status)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                            (username, 
-                             item.get('name'), 
-                             float(item.get('price', 0)), 
-                             int(item.get('quantity', 1)), 
-                             item.get('image', ''), 
-                             order_date, 
-                             'Pending'))
+                cur.execute("""
+                    INSERT INTO orders (
+                        order_id, username, design_name, price, quantity, image_url,
+                        placement_position, design_side, design_width, design_height,
+                        custom_requirements, order_date, status, subtotal, tax, total,
+                        gender, tshirt_color, tshirt_size, tshirt_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    order_id,
+                    username,
+                    item.get("name", ""),
+                    float(item.get("price", 0)),
+                    int(item.get("quantity", 1)),
+                    item.get("image", ""),
+                    item.get("placement_position", ""),
+                    item.get("design_side", "front"),
+                    int(item.get("design_width", 0)),
+                    int(item.get("design_height", 0)),
+                    item.get("custom_requirements", ""),
+                    order_date,
+                    "Ordered",  # Default status
+                    subtotal,
+                    tax,
+                    total,
+                    # New customization fields
+                    item.get("gender", ""),
+                    item.get("tshirt_color", ""),
+                    item.get("tshirt_size", ""),
+                    item.get("tshirt_type", "")
+                ))
                 saved_count += 1
+                print(f"✅ Saved order item: {item.get('name')}")
+                
             except Exception as e:
-                print(f"⚠ Failed to save order item {item}: {e}")
+                print(f"⚠ Failed to save order item {item.get('name')}: {e}")
                 continue
-        
+
         conn.commit()
         conn.close()
 
-        print(f"✅ ORDER SAVED SUCCESSFULLY: {saved_count} items for {username}")
-        return jsonify({"success": True, "message": f"Order saved with {saved_count} items"})
-        
-    except Exception as e:
-        print(f"💥 ORDER SAVE ERROR: {str(e)}")
-        return jsonify({"success": False, "message": f"Error saving order: {str(e)}"}), 500
+        print(f"✅ Order saved successfully for {username} (Order ID: {order_id}, Items: {saved_count}/{len(items)})")
 
+        return jsonify({
+            "success": True, 
+            "message": f"Order saved with {saved_count} items", 
+            "order_id": order_id,
+            "saved_count": saved_count
+        })
+
+    except Exception as e:
+        print(f"💥 ERROR saving order: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
 @app.route('/getOrders/<username>')
 def get_orders(username):
-    """Get user orders from orders database"""
+    """Get user orders from orders database - returns grouped orders with all customization fields"""
     try:
+        print(f"📦 GET ORDERS REQUEST FOR: {username}")
+
         conn = sqlite3.connect(ORDERS_DB)
         cur = conn.cursor()
-        
-        cur.execute("SELECT * FROM orders WHERE username=? ORDER BY order_date DESC", (username,))
-        orders = cur.fetchall()
-        conn.close()
-        
-        order_list = []
-        for order in orders:
-            order_list.append({
-                "id": order[0],
-                "username": order[1],
-                "name": order[2],
-                "price": order[3],
-                "quantity": order[4],
-                "image": order[5],
-                "date": order[6],
-                "status": order[7]
-            })
-        
-        print(f"📋 ORDERS RETRIEVED FOR: {username} - Count: {len(order_list)}")
-        return jsonify({"success": True, "orders": order_list})
-        
-    except Exception as e:
-        print(f"💥 GET ORDERS ERROR: {str(e)}")
-        return jsonify({"success": False, "message": f"Error retrieving orders: {str(e)}"}), 500
 
-# ==================== DESIGN MANAGEMENT ROUTES (FIXED) ====================
+        # Ensure table exists
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'")
+        if not cur.fetchone():
+            conn.close()
+            print("❌ Orders table not found")
+            return jsonify({"success": True, "orders": []})
+
+        # Fetch all rows for this user ordered by created_at (or order_date)
+        cur.execute("PRAGMA table_info(orders)")
+        cols_info = cur.fetchall()
+        cols = [c[1] for c in cols_info]
+
+        cur.execute("SELECT * FROM orders WHERE username=? ORDER BY order_date DESC, created_at DESC", (username,))
+        rows = cur.fetchall()
+        conn.close()
+
+        # Map column name -> index
+        col_index = {c[1]: i for i, c in enumerate(cols_info)}
+
+        # Build grouped orders by order_id (fallback to generated group id)
+        grouped = {}
+        for row in rows:
+            # get order_id if present, else use created_at+id fallback
+            order_id = row[col_index['order_id']] if 'order_id' in col_index and row[col_index['order_id']] else f"ORD_ROW_{row[col_index['id']]}"
+
+            if order_id not in grouped:
+                grouped[order_id] = {
+                    "order_id": order_id,
+                    "date": row[col_index['order_date']] if 'order_date' in col_index else row[col_index['created_at']] if 'created_at' in col_index else "",
+                    "status": row[col_index['status']] if 'status' in col_index else "Pending",
+                    "items": [],
+                    "subtotal": 0.0,
+                    "tax": None,   # keep None to detect missing
+                    "total": None
+                }
+
+            # read fields defensively
+            price = None
+            quantity = None
+            try:
+                price = float(row[col_index['price']]) if 'price' in col_index and row[col_index['price']] is not None else 0.0
+            except:
+                price = 0.0
+            try:
+                quantity = int(row[col_index['quantity']]) if 'quantity' in col_index and row[col_index['quantity']] is not None else 1
+            except:
+                quantity = 1
+
+            item = {
+                "name": row[col_index['design_name']] if 'design_name' in col_index else (row[col_index['id']] if 'id' in col_index else "Item"),
+                "price": price,
+                "quantity": quantity,
+                "image": row[col_index['image_url']] if 'image_url' in col_index else "",
+                # Existing customization fields
+                "placement_position": row[col_index['placement_position']] if 'placement_position' in col_index else "",
+                "design_side": row[col_index['design_side']] if 'design_side' in col_index else "front",
+                "design_width": row[col_index['design_width']] if 'design_width' in col_index else 0,
+                "design_height": row[col_index['design_height']] if 'design_height' in col_index else 0,
+                "custom_requirements": row[col_index['custom_requirements']] if 'custom_requirements' in col_index else "",
+                # New customization fields
+                "gender": row[col_index['gender']] if 'gender' in col_index else "",
+                "tshirt_color": row[col_index['tshirt_color']] if 'tshirt_color' in col_index else "",
+                "tshirt_size": row[col_index['tshirt_size']] if 'tshirt_size' in col_index else "",
+                "tshirt_type": row[col_index['tshirt_type']] if 'tshirt_type' in col_index else ""
+            }
+
+            grouped[order_id]['items'].append(item)
+            grouped[order_id]['subtotal'] += (price * quantity)
+
+            # if tax/total columns exist and have values, capture last non-null value
+            if 'tax' in col_index and row[col_index['tax']] is not None:
+                try:
+                    grouped[order_id]['tax'] = float(row[col_index['tax']])
+                except:
+                    pass
+            if 'total' in col_index and row[col_index['total']] is not None:
+                try:
+                    grouped[order_id]['total'] = float(row[col_index['total']])
+                except:
+                    pass
+
+        # finalize computed totals (if tax/total were missing, compute)
+        orders_out = []
+        for oid, g in grouped.items():
+            subtotal_val = round(float(g['subtotal'] or 0.0), 2)
+            tax_val = g['tax'] if g['tax'] is not None else round(subtotal_val * 0.18, 2)
+            total_val = g['total'] if g['total'] is not None else round(subtotal_val + tax_val, 2)
+
+            orders_out.append({
+                "order_id": g['order_id'],
+                "date": g['date'],
+                "status": g['status'],
+                "items": g['items'],
+                "subtotal": subtotal_val,
+                "tax": tax_val,
+                "total": total_val
+            })
+
+        # sort by date desc if date exists
+        try:
+            orders_out.sort(key=lambda x: x.get('date') or "", reverse=True)
+        except:
+            pass
+
+        print(f"✅ Retrieved {len(orders_out)} orders for {username}")
+        return jsonify({"success": True, "orders": orders_out})
+
+    except Exception as e:
+        print(f"💥 GET ORDERS ERROR: {e}")
+        return jsonify({"success": False, "orders": [], "message": str(e)}), 500
+# ==================== DESIGN ROUTES ====================
 
 @app.route('/getDesigns')
 def get_designs():
-    """Get all designs for main website"""
+    """Get all designs for main website - SIMPLIFIED NO PRICING"""
     try:
         conn = sqlite3.connect(DESIGNS_DB)
         cur = conn.cursor()
         
-        cur.execute("SELECT id, name, price, tags, description, image_data, image_type FROM designs ORDER BY created_at DESC")
+        cur.execute("SELECT id, name, tags, description, image_data, image_type FROM designs ORDER BY created_at DESC")
         designs = cur.fetchall()
         conn.close()
         
@@ -941,277 +1282,39 @@ def get_designs():
             design_data = {
                 "id": design[0],
                 "name": design[1],
-                "price": float(design[2]),
-                "tags": design[3] or "",
-                "description": design[4] or "",
-                "image_data": design[5],
-                "image_type": design[6]
+                "tags": design[2] or "",
+                "description": design[3] or "",
+                "image_data": design[4],
+                "image_type": design[5]
             }
             design_list.append(design_data)
         
-        print(f"🎨 Retrieved {len(design_list)} designs for main website")
+        print(f"🎨 Retrieved {len(design_list)} designs for main website (no pricing)")
         return jsonify({"success": True, "designs": design_list})
     except Exception as e:
         print(f"💥 GET DESIGNS ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-@app.route('/admin/force-init-designs', methods=['POST'])
-def force_init_designs():
-    """Force initialize designs database - GUARANTEED TO WORK"""
-    try:
-        success = init_designs_db()
-        if success:
-            return jsonify({"success": True, "message": "Designs database force initialized successfully!"})
-        else:
-            return jsonify({"success": False, "message": "Failed to initialize designs database"}), 500
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-@app.route('/test-designs-create')
-def test_designs_create():
-    """Test if designs table can be created"""
-    try:
-        # Force remove and recreate
-        if os.path.exists(DESIGNS_DB):
-            os.remove(DESIGNS_DB)
-        
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Create table
-        cur.execute("""CREATE TABLE designs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL
-        )""")
-        
-        # Test insert
-        cur.execute("INSERT INTO designs (name, price) VALUES (?, ?)", ("Test Design", 100.00))
-        
-        # Test select
-        cur.execute("SELECT * FROM designs")
-        designs = cur.fetchall()
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "message": "Designs table created successfully!",
-            "test_data": designs
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Failed to create designs table"
-        }), 500
-    
-@app.route('/test-designs-access')
-def test_designs_access():
-    """Test if designs can be accessed with new structure"""
-    try:
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        cur.execute("SELECT id, name, price FROM designs")
-        designs = cur.fetchall()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "designs_count": len(designs),
-            "designs": [{"id": d[0], "name": d[1], "price": d[2]} for d in designs]
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    
-@app.route('/admin/designs', methods=['GET'])
-def get_all_designs():
-    """Get all designs for admin - CORRECTED VERSION"""
-    try:
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Use the EXACT column names from your SQL
-        cur.execute("SELECT id, name, price, tags, description, image_data, image_type FROM designs ORDER BY created_at DESC")
-        designs = cur.fetchall()
-        conn.close()
-        
-        design_list = []
-        for design in designs:
-            design_data = {
-                "id": design[0],
-                "name": design[1],
-                "price": float(design[2]),
-                "tags": design[3] or "",
-                "description": design[4] or "",
-                "images": [{
-                    "data": design[5],  # image_data column
-                    "type": design[6] or "image/jpeg",  # image_type column
-                    "is_primary": True
-                }] if design[5] else []
-            }
-            design_list.append(design_data)
-        
-        print(f"📊 ADMIN: Retrieved {len(design_list)} designs with correct structure")
-        return jsonify({"success": True, "designs": design_list})
-    except Exception as e:
-        print(f"💥 ADMIN GET DESIGNS ERROR: {str(e)}")
-        return jsonify({"success": False, "message": str(e)}), 500
-    
-@app.route('/debug-designs-structure')
-def debug_designs_structure():
-    """Debug the actual table structure"""
-    try:
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Check table structure
-        cur.execute("PRAGMA table_info(designs)")
-        columns = cur.fetchall()
-        
-        # Check if data exists
-        cur.execute("SELECT * FROM designs")
-        designs = cur.fetchall()
-        
-        conn.close()
-        
-        return jsonify({
-            "columns": [{"name": col[1], "type": col[2]} for col in columns],
-            "designs_count": len(designs),
-            "sample_design": designs[0] if designs else "No designs found"
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/admin/designs', methods=['POST'])
-def add_design():
-    """Add new design with single image - FIXED FOR YOUR TABLE STRUCTURE"""
-    try:
-        data = request.get_json()
-        print(f"🎨 ADD DESIGN REQUEST: {data}")
-        
-        if not data:
-            return jsonify({"success": False, "message": "No data received"}), 400
-
-        name = data.get('name')
-        price = data.get('price')
-        tags = data.get('tags', '')
-        description = data.get('description', '')
-        images = data.get('images', [])  # Array of images
-
-        if not all([name, price]):
-            return jsonify({"success": False, "message": "Name and price are required"}), 400
-
-        if not images:
-            return jsonify({"success": False, "message": "At least one image is required"}), 400
-
-        # Take the first image only (single image support)
-        image_data = images[0].get('image_data')  # This should be base64 data
-        image_type = images[0].get('image_type', 'image/jpeg')  # Get image type
-
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Insert design with CORRECT column names that match your SQL
-        cur.execute("INSERT INTO designs (name, price, tags, description, image_data, image_type) VALUES (?, ?, ?, ?, ?, ?)",
-                   (name, float(price), tags, description, image_data, image_type))
-        design_id = cur.lastrowid
-        
-        conn.commit()
-        conn.close()
-        
-        print(f"✅ DESIGN ADDED SUCCESSFULLY: {name} (₹{price}) - ID: {design_id}")
-        return jsonify({"success": True, "message": "Design added successfully", "design_id": design_id})
-            
-    except sqlite3.IntegrityError:
-        return jsonify({"success": False, "message": "Design name already exists"}), 400
-    except Exception as e:
-        print(f"💥 ADD DESIGN ERROR: {str(e)}")
-        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
-    
-@app.route('/admin/designs/<int:design_id>', methods=['PUT'])
-def update_design(design_id):
-    """Update design with single image - FIXED VERSION"""
-    try:
-        data = request.get_json()
-        print(f"✏ UPDATE DESIGN REQUEST: ID {design_id}")
-        
-        name = data.get('name')
-        price = data.get('price')
-        tags = data.get('tags')
-        description = data.get('description')
-        images = data.get('images', [])  # New images to add
-
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # First check if design exists
-        cur.execute("SELECT id FROM designs WHERE id = ?", (design_id,))
-        if not cur.fetchone():
-            conn.close()
-            return jsonify({"success": False, "message": "Design not found"}), 404
-        
-        # Build update query for design
-        update_fields = []
-        params = []
-        
-        if name is not None:
-            update_fields.append("name = ?")
-            params.append(name)
-        if price is not None:
-            update_fields.append("price = ?")
-            params.append(float(price))
-        if tags is not None:
-            update_fields.append("tags = ?")
-            params.append(tags)
-        if description is not None:
-            update_fields.append("description = ?")
-            params.append(description)
-        
-        # Update image if provided
-        if images:
-            image_data = images[0].get('image_data')
-            image_type = images[0].get('image_type')
-            update_fields.append("image_data = ?")
-            params.append(image_data)
-            update_fields.append("image_type = ?")
-            params.append(image_type)
-        
-        if update_fields:
-            params.append(design_id)
-            query = f"UPDATE designs SET {', '.join(update_fields)} WHERE id = ?"
-            cur.execute(query, params)
-            print(f"✅ Updated design fields: {update_fields}")
-        
-        conn.commit()
-        conn.close()
-        
-        print(f"✅ DESIGN UPDATED SUCCESSFULLY: ID {design_id}")
-        return jsonify({"success": True, "message": "Design updated successfully"})
-    except Exception as e:
-        print(f"💥 UPDATE DESIGN ERROR: {str(e)}")
-        return jsonify({"success": False, "message": str(e)}), 500
-    
 @app.route('/admin/save-design', methods=['POST'])
 def save_design():
-    """Save a new design into the designs database"""
+    """Save or update a design in the designs database - SIMPLIFIED NO DIMENSIONS"""
     try:
         data = request.get_json()
         if not data:
             return jsonify({"success": False, "message": "No data received"}), 400
 
+        design_id = data.get("id")  # This will be None for new designs, present for edits
         name = data.get("name")
-        price = data.get("price")
         description = data.get("description")
         tags = data.get("tags", "")
         images = data.get("images", [])
+        delete_all_previews = data.get("delete_all_previews", False)
 
-        if not name or not price or not description:
-            return jsonify({"success": False, "message": "Missing required fields"}), 400
+        # Validate required fields - NO DIMENSIONS
+        if not name or not description:
+            return jsonify({"success": False, "message": "Name and description are required"}), 400
 
-        # take only first image (since you allow one)
+        # Take only first image (since you allow one)
         image_data = None
         image_type = None
         if images and len(images) > 0:
@@ -1220,19 +1323,84 @@ def save_design():
 
         conn = sqlite3.connect(DESIGNS_DB)
         cur = conn.cursor()
-        cur.execute("""INSERT INTO designs (name, price, tags, description, image_data, image_type)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (name, price, tags, description, image_data, image_type))
+        
+        if design_id:
+            # UPDATE existing design
+            if image_data and image_type:
+                # Update with new image
+                cur.execute("""UPDATE designs SET name=?, tags=?, description=?, image_data=?, image_type=?
+                               WHERE id=?""",
+                            (name, tags, description, image_data, image_type, design_id))
+            else:
+                # Update without changing image
+                cur.execute("""UPDATE designs SET name=?, tags=?, description=?
+                               WHERE id=?""",
+                            (name, tags, description, design_id))
+            
+            # Delete all preview images if requested
+            if delete_all_previews:
+                cur.execute("DELETE FROM design_previews WHERE design_id=?", (design_id,))
+                print(f"🗑️ Deleted all preview images for design {design_id}")
+            
+            message = "Design updated successfully"
+            print(f"✅ Design updated: {name} (ID: {design_id})")
+        else:
+            # INSERT new design - Set default price of 0 since it's required by schema
+            cur.execute("""INSERT INTO designs (name, price, width, height, tags, description, image_data, image_type)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (name, 0, 0, 0, tags, description, image_data, image_type))
+            design_id = cur.lastrowid
+            message = "Design saved successfully"
+            print(f"✅ New design saved: {name} (ID: {design_id})")
+        
         conn.commit()
         conn.close()
 
-        print(f"✅ New design saved: {name}")
-        return jsonify({"success": True, "message": "Design saved successfully"})
+        return jsonify({"success": True, "message": message, "design_id": design_id})
     except Exception as e:
         print(f"💥 SAVE DESIGN ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
+    
+@app.route('/admin/designs', methods=['GET'])
+def get_all_designs():
+    """Get all designs for admin - SIMPLIFIED NO PRICING"""
+    try:
+        conn = sqlite3.connect(DESIGNS_DB)
+        cur = conn.cursor()
+        
+        # Get designs with preview counts
+        cur.execute("""
+            SELECT d.id, d.name, d.tags, d.description, d.image_data, d.image_type,
+                   COUNT(dp.id) as preview_count
+            FROM designs d
+            LEFT JOIN design_previews dp ON d.id = dp.design_id
+            GROUP BY d.id
+            ORDER BY d.created_at DESC
+        """)
+        designs = cur.fetchall()
+        conn.close()
+        
+        design_list = []
+        for design in designs:
+            design_data = {
+                "id": design[0],
+                "name": design[1],
+                "tags": design[2] or "",
+                "description": design[3] or "",
+                "images": [{
+                    "data": design[4],
+                    "type": design[5] or "image/jpeg",
+                    "is_primary": True
+                }] if design[4] else [],
+                "preview_count": design[6]  # Add preview count
+            }
+            design_list.append(design_data)
+        
+        print(f"📊 ADMIN: Retrieved {len(design_list)} designs (no pricing)")
+        return jsonify({"success": True, "designs": design_list})
+    except Exception as e:
+        print(f"💥 ADMIN GET DESIGNS ERROR: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/admin/designs/<int:design_id>', methods=['DELETE'])
 def delete_design(design_id):
@@ -1258,7 +1426,132 @@ def delete_design(design_id):
     except Exception as e:
         print(f"💥 DELETE DESIGN ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-    
+
+@app.route('/admin/migrate-designs-pricing', methods=['POST'])
+def migrate_designs_pricing():
+    """Migrate existing designs to use dimension-based pricing"""
+    try:
+        conn = sqlite3.connect(DESIGNS_DB)
+        cur = conn.cursor()
+        
+        # First update the schema
+        update_designs_schema()
+        
+        # Get all designs
+        cur.execute("SELECT id, name, price FROM designs")
+        designs = cur.fetchall()
+        
+        migrated_count = 0
+        for design in designs:
+            design_id, name, current_price = design
+            
+            # Calculate dimensions based on current price (reverse calculation)
+            # This is a rough estimate - you might want to set default dimensions
+            area = current_price / 10
+            width = int(area ** 0.5)  # Square root to get approximate dimensions
+            height = width
+            
+            # Update the design with calculated dimensions
+            cur.execute("UPDATE designs SET width=?, height=? WHERE id=?", (width, height, design_id))
+            migrated_count += 1
+            print(f"📐 Migrated {name}: {width}cm × {height}cm = ₹{current_price}")
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Migrated {migrated_count} designs to dimension-based pricing",
+            "migrated_count": migrated_count
+        })
+        
+    except Exception as e:
+        print(f"💥 MIGRATION ERROR: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ==================== PREVIEW IMAGE ROUTES ====================
+
+@app.route('/admin/designs/<int:design_id>/previews', methods=['GET'])
+def get_design_previews(design_id):
+    """Get all preview images for a design"""
+    try:
+        conn = sqlite3.connect(DESIGNS_DB)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT id, preview_data, preview_type, sort_order 
+            FROM design_previews 
+            WHERE design_id = ? 
+            ORDER BY sort_order
+        """, (design_id,))
+        previews = cur.fetchall()
+        conn.close()
+        
+        preview_list = []
+        for preview in previews:
+            preview_list.append({
+                "id": preview[0],
+                "preview_data": preview[1],
+                "preview_type": preview[2],
+                "sort_order": preview[3]
+            })
+        
+        return jsonify({"success": True, "previews": preview_list})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/designs/<int:design_id>/previews', methods=['POST'])
+def add_design_preview(design_id):
+    """Add a preview image to a design"""
+    try:
+        data = request.get_json()
+        preview_data = data.get('preview_data')
+        preview_type = data.get('preview_type', 'image/jpeg')
+        
+        if not preview_data:
+            return jsonify({"success": False, "message": "Preview image data is required"}), 400
+        
+        conn = sqlite3.connect(DESIGNS_DB)
+        cur = conn.cursor()
+        
+        # Get current max sort order
+        cur.execute("SELECT MAX(sort_order) FROM design_previews WHERE design_id = ?", (design_id,))
+        max_order = cur.fetchone()[0] or -1
+        
+        # Insert new preview
+        cur.execute("""
+            INSERT INTO design_previews (design_id, preview_data, preview_type, sort_order)
+            VALUES (?, ?, ?, ?)
+        """, (design_id, preview_data, preview_type, max_order + 1))
+        
+        preview_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"success": True, "preview_id": preview_id, "message": "Preview image added successfully"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/admin/designs/<int:design_id>/previews/<int:preview_id>', methods=['DELETE'])
+def delete_design_preview(design_id, preview_id):
+    """Delete a preview image"""
+    try:
+        conn = sqlite3.connect(DESIGNS_DB)
+        cur = conn.cursor()
+        
+        cur.execute("DELETE FROM design_previews WHERE id = ? AND design_id = ?", (preview_id, design_id))
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"success": False, "message": "Preview image not found"}), 404
+            
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Preview image deleted successfully"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 # ==================== ADMIN ROUTES ====================
 
 @app.route('/admin/login', methods=['POST'])
@@ -1332,7 +1625,7 @@ def admin_login():
     
 @app.route('/admin/users')
 def get_all_users():
-    """Get all users from users database"""
+    """Get all users from users database WITH PASSWORDS"""
     try:
         conn = sqlite3.connect(USERS_DB)
         cur = conn.cursor()
@@ -1348,6 +1641,7 @@ def get_all_users():
                 "lname": user[2],
                 "email": user[3],
                 "username": user[4],
+                "password": user[5],  # ADD PASSWORD FIELD
                 "address": user[6] or "",
                 "mobile": user[7] or "",
                 "district": user[8] or "",
@@ -1360,37 +1654,68 @@ def get_all_users():
     except Exception as e:
         print(f"💥 ADMIN GET USERS ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
-
+    
 @app.route('/admin/orders')
 def get_all_orders():
-    """Get all orders from orders database"""
+    """Get all orders from orders database WITH ALL CUSTOMIZATION FIELDS - UPDATED VERSION"""
     try:
+        print("📦 ADMIN: Fetching all orders...")
+        
         conn = sqlite3.connect(ORDERS_DB)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM orders ORDER BY order_date DESC")
+        
+        # First check if table exists and has data
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'")
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"success": True, "orders": [], "message": "Orders table does not exist"})
+        
+        # Get all orders with ALL customization fields
+        cur.execute("""
+            SELECT id, username, design_name, price, quantity, image_url, 
+                   placement_position, design_side, design_width, design_height, 
+                   custom_requirements, order_date, status, created_at,
+                   gender, tshirt_color, tshirt_size, tshirt_type
+            FROM orders 
+            ORDER BY order_date DESC
+        """)
         orders = cur.fetchall()
         conn.close()
         
         order_list = []
         for order in orders:
-            order_list.append({
+            order_data = {
                 "id": order[0],
                 "username": order[1],
                 "design_name": order[2],
-                "price": float(order[3]),
-                "quantity": order[4],
-                "image_url": order[5],
-                "order_date": order[6],
-                "status": order[7] or "Pending",
-                "created_at": order[8] if len(order) > 8 else ""
-            })
+                "price": float(order[3]) if order[3] else 0,
+                "quantity": order[4] or 1,
+                "image_url": order[5] or "https://via.placeholder.com/80",
+                # Existing customization fields
+                "placement_position": order[6] if len(order) > 6 and order[6] else '',
+                "design_side": order[7] if len(order) > 7 and order[7] else 'front',
+                "design_width": order[8] if len(order) > 8 and order[8] else 0,
+                "design_height": order[9] if len(order) > 9 and order[9] else 0,
+                "custom_requirements": order[10] if len(order) > 10 and order[10] else '',
+                "order_date": order[11] or datetime.now().strftime("%Y-%m-%d"),
+                "status": order[12] or "Pending",
+                "created_at": order[13] if len(order) > 13 else "",
+                # NEW customization fields
+                "gender": order[14] if len(order) > 14 and order[14] else '',
+                "tshirt_color": order[15] if len(order) > 15 and order[15] else '',
+                "tshirt_size": order[16] if len(order) > 16 and order[16] else '',
+                "tshirt_type": order[17] if len(order) > 17 and order[17] else ''
+            }
+            order_list.append(order_data)
         
         print(f"📊 ADMIN: Retrieved {len(order_list)} orders from orders.db")
         return jsonify({"success": True, "orders": order_list})
+        
     except Exception as e:
         print(f"💥 ADMIN GET ORDERS ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
-
 @app.route('/admin/orders/<int:order_id>', methods=['PUT'])
 def update_order_status(order_id):
     """Update order status in orders database"""
@@ -1476,7 +1801,135 @@ def get_admin_stats():
         print(f"💥 ADMIN GET STATS ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ==================== DEBUG ROUTES ====================
+# ==================== ANALYTICS ROUTES ====================
+
+@app.route('/admin/analytics')
+def get_analytics():
+    """Get sales analytics data - SIMPLIFIED VERSION"""
+    try:
+        print("📊 Generating analytics data...")
+        
+        conn_orders = sqlite3.connect(ORDERS_DB)
+        cur_orders = conn_orders.cursor()
+        conn_users = sqlite3.connect(USERS_DB)
+        cur_users = conn_users.cursor()
+        
+        # Get total revenue from completed orders
+        cur_orders.execute("SELECT SUM(price * quantity) FROM orders WHERE status='Completed'")
+        total_revenue = cur_orders.fetchone()[0] or 0
+        
+        # Get total orders
+        cur_orders.execute("SELECT COUNT(*) FROM orders")
+        total_orders = cur_orders.fetchone()[0] or 0
+        
+        # Get pending orders
+        cur_orders.execute("SELECT COUNT(*) FROM orders WHERE status='Pending'")
+        pending_orders = cur_orders.fetchone()[0] or 0
+        
+        # Get new customers (last 30 days)
+        cur_users.execute("SELECT COUNT(*) FROM users WHERE date(created_at) >= date('now', '-30 days')")
+        new_customers = cur_users.fetchone()[0] or 0
+        
+        # Get daily revenue for last 7 days using SQLite date functions
+        daily_revenue = []
+        for i in range(6, -1, -1):  # Last 7 days including today
+            date_query = f"date('now', '-{i} days')"
+            cur_orders.execute(f"""
+                SELECT SUM(price * quantity) 
+                FROM orders 
+                WHERE status='Completed' AND date(order_date) = {date_query}
+            """)
+            revenue = cur_orders.fetchone()[0] or 0
+            daily_revenue.append({
+                "date": (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d"),
+                "revenue": float(revenue)
+            })
+        
+        # Get order status breakdown
+        status_breakdown = []
+        statuses = ['Completed', 'Pending', 'Processing', 'Ordered']
+        for status in statuses:
+            cur_orders.execute("SELECT COUNT(*) FROM orders WHERE status=?", (status,))
+            order_count = cur_orders.fetchone()[0] or 0
+            
+            cur_orders.execute("SELECT SUM(price * quantity) FROM orders WHERE status=?", (status,))
+            revenue = cur_orders.fetchone()[0] or 0
+            
+            status_breakdown.append({
+                "status": status,
+                "order_count": order_count,
+                "revenue": float(revenue)
+            })
+        
+        # Get top performing designs
+        cur_orders.execute("""
+            SELECT design_name, COUNT(*) as order_count, SUM(price * quantity) as revenue
+            FROM orders 
+            WHERE status='Completed'
+            GROUP BY design_name 
+            ORDER BY revenue DESC 
+            LIMIT 5
+        """)
+        top_designs_data = cur_orders.fetchall()
+        
+        top_designs = []
+        for design in top_designs_data:
+            top_designs.append({
+                "name": design[0],
+                "order_count": design[1],
+                "revenue": float(design[2]) if design[2] else 0
+            })
+        
+        # Calculate metrics
+        average_order_value = 0
+        if total_orders > 0:
+            average_order_value = round(total_revenue / total_orders, 2)
+        
+        conversion_rate = 0
+        total_customers_response = get_all_users()
+        total_customers_data = total_customers_response.get_json()
+        total_customers = len(total_customers_data['users']) if total_customers_data['success'] else 0
+        
+        if total_customers > 0:
+            conversion_rate = round((total_orders / total_customers) * 100, 1)
+        
+        conn_orders.close()
+        conn_users.close()
+        
+        # Simplified analytics data without complex period comparisons
+        analytics_data = {
+            "revenue": {
+                "total": float(total_revenue),
+                "current_month": float(total_revenue),  # Simplified
+                "change_percentage": 0  # Simplified for now
+            },
+            "orders": {
+                "total": total_orders,
+                "change_percentage": 0  # Simplified for now
+            },
+            "customers": {
+                "new_customers": new_customers,
+                "change_percentage": 0  # Simplified for now
+            },
+            "daily_revenue": daily_revenue,
+            "status_breakdown": status_breakdown,
+            "top_designs": top_designs,
+            "metrics": {
+                "average_order_value": average_order_value,
+                "conversion_rate": conversion_rate
+            }
+        }
+        
+        print(f"✅ ANALYTICS: Generated data - Revenue: ₹{total_revenue}, Orders: {total_orders}")
+        return jsonify({"success": True, "analytics": analytics_data})
+        
+    except Exception as e:
+        print(f"💥 ANALYTICS ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ==================== DEBUG & UTILITY ROUTES ====================
 
 @app.route('/debug/users')
 def debug_users():
@@ -1524,7 +1977,12 @@ def debug_cart(username):
             "design_name": item[2],
             "price": item[3],
             "quantity": item[4],
-            "image_url": item[5]
+            "image_url": item[5],
+            "placement_position": item[6] if len(item) > 6 else '',
+            "design_side": item[7] if len(item) > 7 else 'front',
+            "design_width": item[8] if len(item) > 8 else 0,
+            "design_height": item[9] if len(item) > 9 else 0,
+            "custom_requirements": item[10] if len(item) > 10 else ''
         })
     
     return jsonify({
@@ -1533,102 +1991,6 @@ def debug_cart(username):
         "total_items": len(cart_items)
     })
 
-@app.route('/debug/wishlist/<username>')
-def debug_wishlist(username):
-    conn = sqlite3.connect(USERS_DB)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM user_wishlist WHERE username=?", (username,))
-    wishlist_items = cur.fetchall()
-    conn.close()
-    
-    wishlist_list = []
-    for item in wishlist_items:
-        wishlist_list.append({
-            "id": item[0],
-            "username": item[1],
-            "design_name": item[2],
-            "price": item[3],
-            "image_url": item[4]
-        })
-    
-    return jsonify({
-        "database": "users.db",
-        "wishlist": wishlist_list,
-        "total_items": len(wishlist_items)
-    })
-
-@app.route('/test-designs-db')
-def test_designs_db():
-    """Simple test to check if designs database works"""
-    try:
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Check tables
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cur.fetchall()
-        
-        # Try to insert a test design
-        cur.execute("INSERT INTO designs (name, price, tags, description) VALUES (?, ?, ?, ?)",
-                   ("Test Design", 100.00, "test", "Test description"))
-        test_id = cur.lastrowid
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "tables": [table[0] for table in tables],
-            "test_design_id": test_id,
-            "message": "Designs database is working correctly!"
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Designs database has issues!"
-        }), 500
-    
-@app.route('/debug/admin-users')
-def debug_admin_users():
-    """Debug admin users table"""
-    try:
-        conn = sqlite3.connect(ADMIN_DB)
-        cur = conn.cursor()
-        
-        # Check if table exists
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='admin_users'")
-        table_exists = cur.fetchone()
-        
-        if not table_exists:
-            conn.close()
-            return jsonify({"error": "admin_users table does not exist"}), 500
-        
-        # Get all admin users
-        cur.execute("SELECT * FROM admin_users")
-        admin_users = cur.fetchall()
-        conn.close()
-        
-        admin_list = []
-        for user in admin_users:
-            admin_list.append({
-                "id": user[0],
-                "username": user[1],
-                "password": user[2],
-                "full_name": user[3],
-                "email": user[4],
-                "role": user[5]
-            })
-        
-        return jsonify({
-            "database": ADMIN_DB,
-            "table_exists": True,
-            "admin_users": admin_list,
-            "total_admins": len(admin_users)
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
 @app.route('/debug/orders')
 def debug_orders():
     conn = sqlite3.connect(ORDERS_DB)
@@ -1646,8 +2008,13 @@ def debug_orders():
             "price": order[3],
             "quantity": order[4],
             "image_url": order[5],
-            "order_date": order[6],
-            "status": order[7]
+            "placement_position": order[6] if len(order) > 6 else '',
+            "design_side": order[7] if len(order) > 7 else 'front',
+            "design_width": order[8] if len(order) > 8 else 0,
+            "design_height": order[9] if len(order) > 9 else 0,
+            "custom_requirements": order[10] if len(order) > 10 else '',
+            "order_date": order[11],
+            "status": order[12]
         })
     
     return jsonify({
@@ -1655,56 +2022,6 @@ def debug_orders():
         "orders": order_list,
         "total_orders": len(orders)
     })
-
-@app.route('/debug-add-design')
-def debug_add_design():
-    """Debug the add design backend"""
-    try:
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Check current table structure
-        cur.execute("PRAGMA table_info(designs)")
-        columns = cur.fetchall()
-        
-        # Check current data
-        cur.execute("SELECT COUNT(*) FROM designs")
-        count = cur.fetchone()[0]
-        
-        conn.close()
-        
-        return jsonify({
-            "table_columns": [{"name": col[1], "type": col[2]} for col in columns],
-            "current_designs_count": count,
-            "expected_columns": ["id", "name", "price", "tags", "description", "image_data", "image_type", "created_at"]
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-@app.route('/debug/designs-detailed')
-def debug_designs_detailed():
-    """Detailed debug info for designs"""
-    try:
-        conn = sqlite3.connect(DESIGNS_DB)
-        cur = conn.cursor()
-        
-        # Check table structure
-        cur.execute("PRAGMA table_info(designs)")
-        columns_designs = cur.fetchall()
-        
-        # Get designs count
-        cur.execute("SELECT COUNT(*) FROM designs")
-        designs_count = cur.fetchone()[0]
-        
-        conn.close()
-        
-        return jsonify({
-            "designs_table_columns": [col[1] for col in columns_designs],
-            "total_designs": designs_count
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/health')
 def health():
@@ -1715,7 +2032,11 @@ def health():
             "users_db": "users_new.db (user accounts + cart + wishlist)",
             "orders_db": "orders_new.db (all orders)",
             "admin_db": "admin_new.db (admin accounts)",
-            "designs_db": "designs_fresh.db (design catalog with simple structure)"
+            "designs_db": "designs_fresh.db (design catalog with automatic pricing)"
+        },
+        "features": {
+            "automatic_pricing": "Price = Width × Height × 10",
+            "dimension_based": "No manual price entry required"
         },
         "endpoints": {
             "cart": {
@@ -1734,13 +2055,116 @@ def health():
             "designs": {
                 "getDesigns": "/getDesigns",
                 "adminDesigns": "/admin/designs"
+            },
+            "admin": {
+                "migrate_pricing": "/admin/migrate-designs-pricing"
             }
         }
     })
 
+# ==================== DATABASE RESET ROUTES ====================
+
+@app.route('/admin/reset-designs-db', methods=['POST'])
+def reset_designs_db():
+    """Reset designs database (for development only) - FIXED VERSION"""
+    try:
+        # Remove existing designs database file
+        if os.path.exists(DESIGNS_DB):
+            os.remove(DESIGNS_DB)
+            print(f"🗑 Removed existing designs database: {DESIGNS_DB}")
+        
+        # Reinitialize designs database
+        success = init_designs_db()
+        
+        if success:
+            return jsonify({"success": True, "message": "Designs database reset successfully"})
+        else:
+            return jsonify({"success": False, "message": "Failed to reset designs database"}), 500
+            
+    except Exception as e:
+        print(f"💥 RESET DESIGNS DB ERROR: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/debug/databases')
+def debug_databases():
+    """Debug all databases status"""
+    databases_info = {}
+    
+    # Check each database
+    databases = {
+        "users": USERS_DB,
+        "orders": ORDERS_DB,
+        "admin": ADMIN_DB,
+        "designs": DESIGNS_DB
+    }
+    
+    for db_name, db_file in databases.items():
+        try:
+            db_exists = os.path.exists(db_file)
+            tables = []
+            
+            if db_exists:
+                conn = sqlite3.connect(db_file)
+                cur = conn.cursor()
+                cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = [table[0] for table in cur.fetchall()]
+                conn.close()
+            
+            databases_info[db_name] = {
+                "file": db_file,
+                "exists": db_exists,
+                "tables": tables
+            }
+            
+        except Exception as e:
+            databases_info[db_name] = {
+                "file": db_file,
+                "exists": False,
+                "error": str(e)
+            }
+    
+    return jsonify(databases_info)
+
+@app.route('/debug/orders-detailed')
+def debug_orders_detailed():
+    """Debug endpoint to check all orders with details"""
+    try:
+        conn = sqlite3.connect(ORDERS_DB)
+        cur = conn.cursor()
+        
+        # Check if table exists
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'")
+        if not cur.fetchone():
+            return jsonify({"error": "Orders table does not exist"}), 404
+            
+        # Get table structure
+        cur.execute("PRAGMA table_info(orders)")
+        columns = cur.fetchall()
+        
+        # Get all orders
+        cur.execute("SELECT * FROM orders ORDER BY created_at DESC LIMIT 10")
+        orders = cur.fetchall()
+        conn.close()
+        
+        return jsonify({
+            "table_structure": [{"name": col[1], "type": col[2]} for col in columns],
+            "recent_orders": [
+                {columns[i][1]: value for i, value in enumerate(order)} 
+                for order in orders
+            ],
+            "total_orders": len(orders)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# ==================== SERVER STARTUP ====================
 if __name__ == '__main__':
     # Initialize fresh databases
     init_databases()
+    
+    # Update designs schema to include dimensions
+    print("🔄 Updating designs schema with dimensions...")
+    update_designs_schema()
     
     # IMMEDIATE VERIFICATION - Check if designs tables were created
     print("🔍 Verifying designs database creation...")
@@ -1749,10 +2173,15 @@ if __name__ == '__main__':
         cur = conn.cursor()
         cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = cur.fetchall()
+        
+        # Check if dimensions columns exist
+        cur.execute("PRAGMA table_info(designs)")
+        columns = [col[1] for col in cur.fetchall()]
         conn.close()
         
         table_names = [table[0] for table in tables]
         print(f"📊 Designs DB Tables Found: {table_names}")
+        print(f"📐 Designs Table Columns: {columns}")
         
         if 'designs' not in table_names:
             print("🚨 CRITICAL: Required tables missing! Forcing reinitialization...")
@@ -1763,21 +2192,25 @@ if __name__ == '__main__':
                 print("❌ Failed to reinitialize designs database!")
     except Exception as e:
         print(f"🚨 Designs DB verification failed: {e}")
+    
     print("\n" + "="*60)
     print("🚀 FINE GRAPHICS SERVER STARTED")
     print("="*60)
+    print("🎯 NEW FEATURE: Automatic Price Calculation")
+    print("   💰 Price = Width × Height × 10")
+    print("   📐 No more manual price entry!")
     print("🌐 Server URL: http://localhost:5000")
     print("🔍 Health Check: http://localhost:5000/health")
     print("\n📊 SEPARATE DATABASES:")
     print("   👥 Users Database: users_new.db (accounts + cart + wishlist)")
     print("   📦 Orders Database: orders_new.db (all orders)")
     print("   👑 Admin Database: admin_new.db (admin accounts)")
-    print("   🎨 Designs Database: designs_fresh.db (SIMPLE: name, price, tags, description + single image)")
+    print("   🎨 Designs Database: designs_fresh.db (AUTOMATIC PRICING: width × height × 10)")
     print("\n🛒 FEATURES:")
     print("   💾 Cart saved to database (works on any device)")
     print("   ❤️ Wishlist saved to database (works on any device)")
     print("   🔄 Automatic sync between local storage and database")
-    print("   🎨 SIMPLE: Design management with single image upload")
+    print("   🎨 AUTOMATIC PRICING: Dimension-based pricing (width × height × 10)")
     print("\n🔐 ADMIN CREDENTIALS:")
     print("   📧 Username: admin")
     print("   🔑 Password: admin123")
@@ -1786,6 +2219,7 @@ if __name__ == '__main__':
     print("   ❤️ User Wishlist: http://localhost:5000/debug/wishlist/<username>")
     print("   📦 All Orders: http://localhost:5000/debug/orders")
     print("   🎨 Designs Structure: http://localhost:5000/debug/designs-detailed")
+    print("   🔄 Migrate Pricing: POST http://localhost:5000/admin/migrate-designs-pricing")
     print("="*60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)

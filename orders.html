@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Orders - Fine Graphics</title>
+    <!-- Cache buster to force reload -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+<!-- Desktop Site Enforcer - Add this to EVERY page -->
     <style>
         * {
             margin: 0;
@@ -202,13 +207,22 @@
             color: #383d41;
         }
 
+        /* Order Items Container */
+        .order-items {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
         .order-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 1rem;
             padding: 1rem;
             background: #f8f9fa;
             border-radius: 8px;
+            border: 1px solid #e9ecef;
         }
 
         .order-item-image {
@@ -216,6 +230,7 @@
             height: 80px;
             object-fit: cover;
             border-radius: 6px;
+            flex-shrink: 0;
         }
 
         .order-item-details {
@@ -233,10 +248,75 @@
             margin-bottom: 0.25rem;
         }
 
-        .order-total {
-            font-size: 1.2rem;
+        .order-item-total {
+            font-size: 1.1rem;
             font-weight: bold;
             color: #667eea;
+            flex-shrink: 0;
+        }
+
+        /* Customization Details */
+        /* Customization Details - IMPROVED */
+/* Customization Details - COMPACT VERSION */
+.customization-details {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+    border-radius: 6px;
+    border-left: 3px solid #667eea;
+    border: 1px solid #cce7ff;
+}
+
+.customization-details small {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: #2c5282;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    padding: 0.1rem 0;
+    font-weight: 500;
+}
+
+.customization-details small:last-child {
+    margin-bottom: 0;
+}
+
+/* Make it even more compact on mobile */
+@media (max-width: 768px) {
+    .customization-details {
+        padding: 0.4rem;
+    }
+    
+    .customization-details small {
+        font-size: 0.7rem;
+    }
+}
+
+.customization-details small:not(:last-child) {
+    border-bottom: 1px solid #bee3f8;
+    padding-bottom: 0.3rem;
+}
+
+/* Customization Icons */
+.customization-details small::before {
+    margin-right: 0.5rem;
+    font-weight: bold;
+}
+
+/* You can add specific icons for each field type if needed */
+        /* Order Footer */
+        .order-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .order-total {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
         }
 
         /* Empty Orders */
@@ -271,6 +351,22 @@
 
         .btn-primary:hover {
             background: #5a6fd8;
+        }
+
+        .btn-debug {
+            background: #ffc107;
+            color: #000;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 1rem;
+            transition: background 0.3s;
+        }
+
+        .btn-debug:hover {
+            background: #e0a800;
         }
 
         /* Loading and Error */
@@ -323,6 +419,15 @@
             }
         }
     </style>
+    <script>
+    // Force desktop view only on mobile devices
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        var viewport = document.querySelector("meta[name=viewport]");
+        if (viewport) {
+            viewport.setAttribute('content', 'width=1200, initial-scale=0.5, user-scalable=yes');
+        }
+    }
+</script>
 </head>
 <body>
     <!-- Header -->
@@ -359,14 +464,20 @@
     </footer>
 
     <script>
+        // Cache buster - force reload
+        console.log('🔄 orders.html loaded - Version: ' + new Date().toISOString());
+        
         // Global variables
         let currentUser = null;
         let cart = [];
         let wishlist = [];
+        let orders = [];
 
         // Initialize the application
         async function initApp() {
+            console.log('🚀 Initializing orders app...');
             await checkLoginStatus();
+            checkDebugMode();
             await loadOrders();
             loadCartFromStorage();
             loadWishlistFromStorage();
@@ -378,89 +489,328 @@
             const userData = localStorage.getItem('currentUser');
             if (userData) {
                 currentUser = JSON.parse(userData);
-                console.log('User logged in:', currentUser.username);
+                console.log('✅ User logged in:', currentUser.username);
+            } else {
+                showLoginPrompt();
             }
         }
 
-        // Load orders from database
+        // Check for debug parameter
+        function checkDebugMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('debug')) {
+                console.log('🔧 Debug mode enabled');
+                window.debugMode = true;
+            }
+        }
+
+        // Load orders from database - IMPROVED VERSION
         async function loadOrders() {
             try {
                 const ordersContainer = document.getElementById('ordersContainer');
                 ordersContainer.innerHTML = '<div class="loading">Loading orders...</div>';
 
                 if (!currentUser) {
-                    ordersContainer.innerHTML = `
-                        <div class="empty-orders">
-                            <h3>Please login to view orders</h3>
-                            <p>Login to see your order history</p>
-                            <a href="login.html" class="btn-primary">Login</a>
+                    showLoginPrompt();
+                    return;
+                }
+
+                console.log('🔄 Loading orders for:', currentUser.username);
+
+                const response = await fetch(`/getOrders/${currentUser.username}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('📦 Orders API Result:', result);
+
+                if (result.success && result.orders && result.orders.length > 0) {
+                    orders = result.orders;
+                    renderOrders(result.orders);
+                } else {
+                    showNoOrders();
+                }
+            } catch (error) {
+                console.error('❌ Error loading orders:', error);
+                showError(error.message);
+            }
+        }
+
+        // Render orders function - IMPROVED VERSION
+        // Render orders function - UPDATED WITH GST DISPLAY
+function renderOrders(orders) {
+    console.log('📦 Orders data for rendering:', orders);
+
+    if (!orders || orders.length === 0) {
+        showNoOrders();
+        return;
+    }
+
+    let ordersHTML = '';
+
+    orders.forEach((order, index) => {
+        // date handling
+        let orderDate = 'Recent Order';
+        try {
+            const dateValue = order.date || order.order_date;
+            if (dateValue) {
+                orderDate = new Date(dateValue).toLocaleString('en-IN', {
+                    year: 'numeric', month: 'long', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            }
+        } catch (e) {
+            console.warn('Date parse failed', e);
+        }
+
+        const statusClass = (order.status || 'pending').toLowerCase().replace(' ', '-');
+        const orderId = order.order_id || order.id || `ORDER-${index + 1}`;
+
+        // ensure numeric
+        const orderSubtotal = Number(order.subtotal) || (order.items || []).reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
+        const orderTax = Number(order.tax) || +(orderSubtotal * 0.18).toFixed(2);
+        const orderTotal = Number(order.total) || +(orderSubtotal + orderTax).toFixed(2);
+
+        ordersHTML += `
+            <div class="order-card">
+                <div class="order-header">
+                    <div class="order-info">
+                        <h4>Order #${orderId}</h4>
+                        <p class="order-date">${orderDate}</p>
+                    </div>
+                    <div class="order-status ${statusClass}">${order.status || 'Pending'}</div>
+                </div>
+                <div class="order-items">
+        `;
+
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                ordersHTML += renderOrderItem(item);
+            });
+        } else {
+            ordersHTML += renderOrderItem(order);
+        }
+
+        ordersHTML += `
+                </div>
+                <div class="order-footer">
+                    <div style="text-align: right; width: 100%;">
+                        <div style="margin-bottom:0.5rem; font-size:0.9rem; color:#666;">
+                            <div>Subtotal: ₹${orderSubtotal.toFixed(2)}</div>
+                            <div>GST (18%): ₹${orderTax.toFixed(2)}</div>
                         </div>
-                    `;
+                        <div class="order-total">Total: ₹${orderTotal.toFixed(2)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById('ordersContainer').innerHTML = ordersHTML;
+}
+
+
+// Render individual order item - REUSABLE FUNCTION
+// Render individual order item - UPDATED WITH ALL CUSTOMIZATION FIELDS
+// Render individual order item - COMPACT VERSION
+function renderOrderItem(item) {
+    const itemName = item.name || item.design_name || 'Unknown Design';
+    const itemPrice = Number(item.price) || 0;
+    const itemQuantity = Number(item.quantity) || 1;
+    const itemImage = item.image || item.image_url || 'https://via.placeholder.com/80?text=No+Image';
+    const itemTotal = +(itemPrice * itemQuantity);
+
+    // All customization fields
+    const designSide = item.design_side || 'front';
+    const designWidth = Number(item.design_width) || 0;
+    const designHeight = Number(item.design_height) || 0;
+    const customRequirements = item.custom_requirements || '';
+    const placementPosition = item.placement_position || '';
+    
+    // New customization fields
+    const gender = item.gender || '';
+    const tshirtColor = item.tshirt_color || '';
+    const tshirtSize = item.tshirt_size || '';
+    const tshirtType = item.tshirt_type || '';
+
+    // Check if any customization exists
+    const hasCustomization = placementPosition || customRequirements || 
+                            (designWidth > 0 && designHeight > 0) ||
+                            gender || tshirtColor || tshirtSize || tshirtType;
+
+    let customizationHtml = '';
+    if (hasCustomization) {
+        // Build compact lines
+        const compactLines = [];
+        
+        // Line 1: Personal details (Gender, Color, Size, Type)
+        const personalDetails = [];
+        if (gender) personalDetails.push(`👤 ${gender.charAt(0).toUpperCase() + gender.slice(1)}`);
+        if (tshirtColor) personalDetails.push(`🎨 ${tshirtColor.charAt(0).toUpperCase() + tshirtColor.slice(1)}`);
+        if (tshirtSize) personalDetails.push(`📏 ${tshirtSize.toUpperCase()}`);
+        if (tshirtType) personalDetails.push(`👕 ${tshirtType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`);
+        
+        if (personalDetails.length > 0) {
+            compactLines.push(personalDetails.join(' • '));
+        }
+        
+        // Line 2: Design details (Position, Size)
+        const designDetails = [];
+        if (placementPosition) designDetails.push(`📍 ${designSide.toUpperCase()}: ${placementPosition}`);
+        if (designWidth > 0 && designHeight > 0) designDetails.push(`📐 ${designWidth}cm × ${designHeight}cm`);
+        
+        if (designDetails.length > 0) {
+            compactLines.push(designDetails.join(' • '));
+        }
+        
+        // Line 3: Special requirements (if any)
+        if (customRequirements) {
+            compactLines.push(`📝 ${customRequirements}`);
+        }
+        
+        customizationHtml = `
+            <div class="customization-details">
+                ${compactLines.map(line => `<small>${line}</small>`).join('')}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="order-item">
+            <img class="order-item-image" src="${itemImage}" alt="${itemName}" onerror="this.src='https://via.placeholder.com/80?text=No+Image'">
+            <div class="order-item-details">
+                <h5>${itemName}</h5>
+                <p>Price: ₹${itemPrice.toFixed(2)}</p>
+                <p>Quantity: ${itemQuantity}</p>
+                ${customizationHtml}
+            </div>
+            <div class="order-item-total">₹${itemTotal.toFixed(2)}</div>
+        </div>
+    `;
+}
+
+        // Show login prompt
+        function showLoginPrompt() {
+            document.getElementById('ordersContainer').innerHTML = `
+                <div class="empty-orders">
+                    <h3>Please login to view orders</h3>
+                    <p>Login to see your order history</p>
+                    <a href="login.html" class="btn-primary">Login</a>
+                </div>
+            `;
+        }
+
+        // Show no orders message
+        // Show no orders message
+function showNoOrders() {
+    document.getElementById('ordersContainer').innerHTML = `
+        <div class="empty-orders">
+            <h3>No orders found</h3>
+            <p>You haven't placed any orders yet.</p>
+            <div style="margin-top: 1rem;">
+                <a href="index.html" class="btn-primary">Start Shopping</a>
+            </div>
+        </div>
+    `;
+}
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('ordersContainer').innerHTML = `
+                <div class="error">
+                    <h3>Error loading orders</h3>
+                    <p>${message}</p>
+                    <div style="margin-top: 1rem;">
+                        <button onclick="window.location.href='index.html'" class="btn-primary" style="background: #6c757d;">Go Home</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Debug orders
+        async function debugOrders() {
+            try {
+                console.log('🔍 Debugging orders...');
+                if (!currentUser) {
+                    alert('Please login first');
                     return;
                 }
 
                 const response = await fetch(`/getOrders/${currentUser.username}`);
                 const result = await response.json();
-
-                if (result.success && result.orders.length > 0) {
-                    let ordersHTML = '';
-                    
-                    result.orders.forEach(order => {
-                        const orderDate = new Date(order.date).toLocaleDateString('en-IN', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                        const total = order.price * order.quantity;
-                        
-                        ordersHTML += `
-                            <div class="order-card">
-                                <div class="order-header">
-                                    <div class="order-info">
-                                        <h4>Order #${order.id}</h4>
-                                        <p class="order-date">${orderDate}</p>
-                                    </div>
-                                    <div class="order-status ${order.status.toLowerCase()}">
-                                        ${order.status}
-                                    </div>
-                                </div>
-                                <div class="order-item">
-                                    <img src="${order.image}" alt="${order.name}" class="order-item-image">
-                                    <div class="order-item-details">
-                                        <h5>${order.name}</h5>
-                                        <p><strong>Price:</strong> ₹${order.price}</p>
-                                        <p><strong>Quantity:</strong> ${order.quantity}</p>
-                                        <p><strong>Design Type:</strong> ${order.name.split(' ')[0]}</p>
-                                    </div>
-                                    <div class="order-total">
-                                        ₹${total.toFixed(2)}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-
-                    ordersContainer.innerHTML = ordersHTML;
-                } else {
-                    ordersContainer.innerHTML = `
-                        <div class="empty-orders">
-                            <h3>No orders found</h3>
-                            <p>You haven't placed any orders yet.</p>
-                            <a href="index.html" class="btn-primary">Start Shopping</a>
+                
+                alert(`Orders Debug Info:\n\n` +
+                      `Success: ${result.success}\n` +
+                      `Orders Count: ${result.orders ? result.orders.length : 0}\n` +
+                      `Message: ${result.message || 'No message'}\n\n` +
+                      `Check browser console for details.`);
+                      
+                console.log('📋 Debug orders data:', result);
+                
+                // Show raw data in page
+                const ordersContainer = document.getElementById('ordersContainer');
+                ordersContainer.innerHTML = `
+                    <div style="background: #fff; padding: 2rem; border-radius: 10px; margin-bottom: 2rem;">
+                        <h3 style="color: #333; margin-bottom: 1rem;">🔍 Debug View - Raw Orders Data</h3>
+                        <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; font-family: monospace; font-size: 0.9rem; max-height: 300px; overflow-y: auto;">
+                            <pre>${JSON.stringify(result, null, 2)}</pre>
                         </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading orders:', error);
-                document.getElementById('ordersContainer').innerHTML = `
-                    <div class="error">
-                        <h3>Error loading orders</h3>
-                        <p>${error.message}</p>
-                        <button class="btn-primary" onclick="loadOrders()">Retry</button>
+                        <button onclick="loadOrders()" class="btn-primary" style="margin-top: 1rem;">
+                            Show Normal View
+                        </button>
                     </div>
                 `;
+            } catch (error) {
+                alert('Debug failed: ' + error.message);
+            }
+        }
+
+        // Test order creation
+        async function testOrderCreation() {
+            try {
+                if (!currentUser) {
+                    alert('Please login first');
+                    return;
+                }
+
+                const testOrder = {
+                    username: currentUser.username,
+                    items: [
+                        {
+                            name: "Test Design",
+                            price: 100.00,
+                            quantity: 1,
+                            image: "https://via.placeholder.com/80",
+                            placement_position: "MIDDLE",
+                            design_side: "front",
+                            design_width: 10,
+                            design_height: 10,
+                            custom_requirements: "Test order for debugging"
+                        }
+                    ]
+                };
+
+                const response = await fetch("/saveOrder", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(testOrder)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Test order created successfully!\nOrder ID: ${result.order_id}`);
+                    // Reload orders
+                    await loadOrders();
+                } else {
+                    alert(`Failed to create test order: ${result.message}`);
+                }
+            } catch (error) {
+                alert('Test order creation failed: ' + error.message);
             }
         }
 
@@ -487,9 +837,6 @@
             if (currentUser) {
                 authButtons.innerHTML = `
                     <div class="user-info">
-                        <img src="${currentUser.profile_pic || 'https://via.placeholder.com/40'}" 
-                             alt="Profile" class="user-avatar">
-                        <span class="user-name">${currentUser.username}</span>
                         <div class="cart-badge">
                             <a href="cart.html" style="color: white; text-decoration: none;">🛒 Cart</a>
                             <span class="badge" id="cartCount">0</span>
@@ -516,7 +863,7 @@
             const wishlistCount = document.getElementById('wishlistCount');
             
             if (cartCount) {
-                const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+                const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
                 cartCount.textContent = totalItems;
                 cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
             }
@@ -537,7 +884,16 @@
         }
 
         // Initialize the app when page loads
-        document.addEventListener('DOMContentLoaded', initApp);
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM Content Loaded - Initializing app...');
+            initApp();
+        });
+
+        // Force refresh function
+        function forceRefresh() {
+            console.log('🔄 Force refreshing page...');
+            window.location.reload(true);
+        }
     </script>
 </body>
 </html>
