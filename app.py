@@ -2159,46 +2159,6 @@ def debug_orders_detailed():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/debug/databases')
-def debug_databases():
-    """Check if databases exist and have data"""
-    databases_info = {}
-    
-    for db_name, db_file in [("users", USERS_DB), ("orders", ORDERS_DB), ("admin", ADMIN_DB), ("designs", DESIGNS_DB)]:
-        try:
-            db_exists = os.path.exists(db_file)
-            table_count = 0
-            row_count = 0
-            
-            if db_exists:
-                conn = sqlite3.connect(db_file)
-                cur = conn.cursor()
-                cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-                tables = cur.fetchall()
-                table_count = len(tables)
-                
-                # Count rows in each table
-                for table in tables:
-                    cur.execute(f"SELECT COUNT(*) FROM {table[0]}")
-                    row_count += cur.fetchone()[0]
-                
-                conn.close()
-            
-            databases_info[db_name] = {
-                "file": db_file,
-                "exists": db_exists,
-                "tables": table_count,
-                "rows": row_count
-            }
-            
-        except Exception as e:
-            databases_info[db_name] = {
-                "file": db_file,
-                "exists": False,
-                "error": str(e)
-            }
-    
-    return jsonify(databases_info)
 
 # ==================== SERVER STARTUP ====================
 if __name__ == '__main__':
