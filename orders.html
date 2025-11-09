@@ -506,37 +506,30 @@
 
         // Load orders from database - IMPROVED VERSION
         async function loadOrders() {
-            try {
-                const ordersContainer = document.getElementById('ordersContainer');
-                ordersContainer.innerHTML = '<div class="loading">Loading orders...</div>';
-
-                if (!currentUser) {
-                    showLoginPrompt();
-                    return;
-                }
-
-                console.log('🔄 Loading orders for:', currentUser.username);
-
-                const response = await fetch(`/getOrders/${currentUser.username}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('📦 Orders API Result:', result);
-
-                if (result.success && result.orders && result.orders.length > 0) {
-                    orders = result.orders;
-                    renderOrders(result.orders);
-                } else {
-                    showNoOrders();
-                }
-            } catch (error) {
-                console.error('❌ Error loading orders:', error);
-                showError(error.message);
+    try {
+        // Try backend API first
+        const response = await fetch(`/getOrders/${currentUser.username}`);
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                orders = result.orders;
+                renderOrders(orders);
+                return;
             }
         }
+    } catch (error) {
+        console.log('API failed, trying localStorage fallback...');
+    }
+    
+    // Fallback to localStorage
+    const localOrders = localStorage.getItem(`orders_${currentUser.username}`);
+    if (localOrders) {
+        orders = JSON.parse(localOrders);
+        renderOrders(orders);
+    } else {
+        showNoOrders();
+    }
+}
 
         // Render orders function - IMPROVED VERSION
         // Render orders function - UPDATED WITH GST DISPLAY
