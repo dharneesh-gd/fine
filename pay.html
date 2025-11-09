@@ -883,6 +883,14 @@ async function handleOrderSave() {
     // Add some console styling for better debugging
     console.log('%c🎨 Fine Graphics Payment System', 'color: #007bff; font-size: 16px; font-weight: bold;');
     console.log('%c✅ Payment processing active', 'color: #28a745;');
+    // Add this to your handleOrderSave function in pay.html
+console.log("🔄 handleOrderSave - Step 1: Starting order save");
+console.log("📦 Order data:", orderData);
+console.log("👤 Username:", username);
+
+// After the fetch call, add:
+console.log("📬 API Response status:", response.status);
+console.log("📦 API Response data:", result);
   </script>
 </body>
 </html>
