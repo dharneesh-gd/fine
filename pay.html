@@ -6,7 +6,6 @@
   <title>Payment - Fine Graphics</title>
   
   <style>
-    /* Your existing CSS styles */
     body { 
       font-family: Arial, sans-serif; 
       margin: 0; 
@@ -59,6 +58,39 @@
       margin: 5px 0; 
       color: #333; 
       font-size: 16px; 
+    }
+
+    .customization-details {
+      background: #f0f8ff;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      border-left: 4px solid #007bff;
+    }
+
+    .customization-details p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .customization-details strong {
+      color: #007bff;
+    }
+
+    .customization-section {
+      margin: 8px 0;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      border-left: 3px solid #28a745;
+    }
+
+    .customization-section h4 {
+      margin: 0 0 8px 0;
+      color: #333;
+      font-size: 14px;
+      font-weight: bold;
     }
 
     .btn {
@@ -116,25 +148,6 @@
       font-weight: bold;
     }
     
-/* Add this to your existing CSS */
-.details .customization-section {
-    background: #f0f8ff;
-    padding: 10px;
-    border-radius: 5px;
-    margin: 10px 0;
-    border-left: 3px solid #007bff;
-}
-
-.details .customization-section p {
-    margin: 2px 0;
-    font-size: 14px;
-    line-height: 1.3;
-}
-
-.details .customization-section strong {
-    color: #007bff;
-}
-
     .loading {
       text-align: center;
       padding: 20px;
@@ -353,52 +366,87 @@
       `;
     }
 
-    // Render order items
-    // Render order items
-function renderOrderItems() {
-    const orderContainer = document.getElementById("orderContainer");
-
-    if (!checkout || !checkout.items || checkout.items.length === 0) {
-        orderContainer.innerHTML = "<div class='error'>No items found for payment.</div>";
-        document.getElementById("payBtn").disabled = true;
-        return;
+    // Format display names for better readability
+    function formatDisplayName(value) {
+      if (!value) return 'Not specified';
+      
+      // Handle hyphenated values (e.g., "round-neck" -> "Round Neck")
+      if (value.includes('-')) {
+        return value.split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+      }
+      
+      // Handle regular values
+      return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
     }
 
-    let orderHTML = '<h2>📦 Your Order Summary</h2>';
-    checkout.items.forEach((item, index) => {
-        const itemSubtotal = item.price * item.quantity;
-        
-        // Format display names for new customization options
-        const colorDisplay = item.tshirt_color ? item.tshirt_color.charAt(0).toUpperCase() + item.tshirt_color.slice(1) : '';
-        const tshirtTypeDisplay = item.tshirt_type ? 
-            item.tshirt_type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
-        
-        orderHTML += `
-            <div class="order-item">
-                <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/120?text=Image+Not+Found'">
-                <div class="details">
-                    <h2>${item.name}</h2>
-                    <p><strong>Price:</strong> ₹${item.price}</p>
-                    <p><strong>Quantity:</strong> ${item.quantity}</p>
-                    <div style="background: #f0f8ff; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 3px solid #007bff;">
-                        <p style="margin: 2px 0; font-size: 14px;"><strong>Customization Details:</strong></p>
-                        ${item.gender ? `<p style="margin: 2px 0; font-size: 14px;">👤 Gender: ${item.gender.charAt(0).toUpperCase() + item.gender.slice(1)}</p>` : ''}
-                        ${colorDisplay ? `<p style="margin: 2px 0; font-size: 14px;">🎨 Color: ${colorDisplay}</p>` : ''}
-                        ${item.tshirt_size ? `<p style="margin: 2px 0; font-size: 14px;">📏 Size: ${item.tshirt_size}</p>` : ''}
-                        ${tshirtTypeDisplay ? `<p style="margin: 2px 0; font-size: 14px;">👕 Type: ${tshirtTypeDisplay}</p>` : ''}
-                        ${item.design_side ? `<p style="margin: 2px 0; font-size: 14px;">📍 Side: ${item.design_side}</p>` : ''}
-                        ${item.placement_position ? `<p style="margin: 2px 0; font-size: 14px;">🎯 Position: ${item.placement_position}</p>` : ''}
-                        ${(item.design_width > 0 && item.design_height > 0) ? `<p style="margin: 2px 0; font-size: 14px;">📐 Design Size: ${item.design_width}cm × ${item.design_height}cm</p>` : ''}
-                        ${item.custom_requirements ? `<p style="margin: 2px 0; font-size: 14px;">📝 Requirements: ${item.custom_requirements}</p>` : ''}
-                    </div>
-                    <p><strong>Subtotal:</strong> ₹${itemSubtotal.toFixed(2)}</p>
-                </div>
-            </div>
-        `;
-    });
+    // Render order items with all customization details
+    function renderOrderItems() {
+        const orderContainer = document.getElementById("orderContainer");
 
-    orderContainer.innerHTML = orderHTML;
-}
+        if (!checkout || !checkout.items || checkout.items.length === 0) {
+            orderContainer.innerHTML = "<div class='error'>No items found for payment.</div>";
+            document.getElementById("payBtn").disabled = true;
+            return;
+        }
+
+        let orderHTML = '<h2>📦 Your Order Summary</h2>';
+        checkout.items.forEach((item, index) => {
+            const itemSubtotal = item.price * item.quantity;
+            
+            // Format display names for better readability
+            const genderDisplay = formatDisplayName(item.gender);
+            const colorDisplay = formatDisplayName(item.tshirt_color);
+            const sizeDisplay = item.tshirt_size || 'Not specified';
+            const tshirtTypeDisplay = formatDisplayName(item.tshirt_type);
+            const designSideDisplay = formatDisplayName(item.design_side);
+            const positionDisplay = item.placement_position || 'Not specified';
+            const designSizeDisplay = (item.design_width > 0 && item.design_height > 0) 
+                ? `${item.design_width}cm × ${item.design_height}cm` 
+                : 'Not specified';
+            
+            orderHTML += `
+                <div class="order-item">
+                    <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/120?text=Image+Not+Found'">
+                    <div class="details">
+                        <h2>${item.name}</h2>
+                        <p><strong>Price:</strong> ₹${item.price}</p>
+                        <p><strong>Quantity:</strong> ${item.quantity}</p>
+                        
+                        <!-- Customization Details Section -->
+                        <div class="customization-details">
+                            <div class="customization-section">
+                                <h4>👕 T-Shirt Details</h4>
+                                <p><strong>🧍 Gender:</strong> ${genderDisplay}</p>
+                                <p><strong>🎨 Color:</strong> ${colorDisplay}</p>
+                                <p><strong>📏 Size:</strong> ${sizeDisplay}</p>
+                                <p><strong>👕 Type:</strong> ${tshirtTypeDisplay}</p>
+                            </div>
+                            
+                            <div class="customization-section">
+                                <h4>🎨 Design Details</h4>
+                                <p><strong>📍 Side:</strong> ${designSideDisplay}</p>
+                                <p><strong>🎯 Position:</strong> ${positionDisplay}</p>
+                                <p><strong>📐 Design Size:</strong> ${designSizeDisplay}</p>
+                            </div>
+                            
+                            ${item.custom_requirements ? `
+                                <div class="customization-section">
+                                    <h4>📝 Custom Requirements</h4>
+                                    <p>${item.custom_requirements}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <p><strong>Subtotal:</strong> ₹${itemSubtotal.toFixed(2)}</p>
+                    </div>
+                </div>
+            `;
+        });
+
+        orderContainer.innerHTML = orderHTML;
+    }
 
     // Handle payment process
     function handlePayment() {
@@ -450,419 +498,192 @@ function renderOrderItems() {
       }, 1000);
     }
 
-    // Handle order confirmation - FIXED VERSION
-// Handle order confirmation - UPDATED WITH ALL CUSTOMIZATION FIELDS
-// Handle order confirmation - UPDATED WITH ALL CUSTOMIZATION FIELDS
-async function handleOrderSave() {
-    try {
-        console.log("🟢 handleOrderSave() triggered");
+    // Handle order confirmation
+    async function handleOrderSave() {
+        try {
+            console.log("🟢 handleOrderSave() triggered");
 
-        if (!checkout || !currentUser) {
-            showError("No order data found. Please try again.");
-            console.log("❌ Missing checkout or user data");
-            return;
-        }
-
-        const username = currentUser.username || currentUser.email;
-        const paidBtn = document.getElementById("paidBtn");
-        const successBox = document.getElementById("successBox");
-
-        paidBtn.disabled = true;
-        paidBtn.textContent = "💾 Saving Order...";
-
-        // Build the order data with ALL customization fields
-        const orderData = {
-            username: username,
-            items: checkout.items.map(item => ({
-                name: item.name,
-                price: parseFloat(item.price) || 0,
-                quantity: parseInt(item.quantity) || 1,
-                image: item.image || "",
-                // Existing customization fields
-                placement_position: item.placement_position || "",
-                design_side: item.design_side || "front",
-                design_width: parseInt(item.design_width) || 0,
-                design_height: parseInt(item.design_height) || 0,
-                custom_requirements: item.custom_requirements || "",
-                // NEW customization fields - INCLUDING ALL FIELDS
-                gender: item.gender || "",
-                tshirt_color: item.tshirt_color || "",
-                tshirt_size: item.tshirt_size || "",
-                tshirt_type: item.tshirt_type || "",
-                // Additional fields that might exist
-                front_width: parseInt(item.front_width) || 0,
-                front_height: parseInt(item.front_height) || 0,
-                front_position_x: parseInt(item.front_position_x) || 50,
-                front_position_y: parseInt(item.front_position_y) || 50,
-                front_rotation: parseInt(item.front_rotation) || 0,
-                back_width: parseInt(item.back_width) || 0,
-                back_height: parseInt(item.back_height) || 0,
-                back_position_x: parseInt(item.back_position_x) || 50,
-                back_position_y: parseInt(item.back_position_y) || 50,
-                back_rotation: parseInt(item.back_rotation) || 0
-            })),
-            subtotal: subtotal,
-            tax: tax,
-            total: total,
-            shipping: checkout.shipping || {},
-            orderDate: new Date().toISOString(),
-            status: "confirmed"
-        };
-
-        console.log("📦 Sending order to backend with items:", orderData.items);
-
-        // Debug: Check what fields are actually available in checkout items
-        console.log("🔍 Available fields in first checkout item:", Object.keys(checkout.items[0]));
-
-        // STEP 1: First save the order
-        const response = await fetch("/saveOrder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderData)
-        });
-
-        console.log("📬 Response status:", response.status);
-        const result = await response.json();
-        console.log("📦 Backend response:", result);
-
-        if (result.success) {
-            console.log("✅ Order saved successfully. Now removing from cart...");
-            
-            // STEP 2: Only after order is saved, remove items from cart
-            try {
-                await removePurchasedItemsFromCart();
-                console.log("✅ Cart items removed successfully");
-            } catch (cartError) {
-                console.error("❌ Error removing cart items, but order was saved:", cartError);
-                // Don't throw error here - order is already saved
+            if (!checkout || !currentUser) {
+                showError("No order data found. Please try again.");
+                console.log("❌ Missing checkout or user data");
+                return;
             }
 
-            // Show success box
-            successBox.style.display = "block";
-            successBox.classList.add("success-animation");
-            successBox.innerHTML = `
-                <div class="success-animation">
-                    ✅ <strong>Payment Successful!</strong><br>
-                    📦 Order ID: ${result.orderId || 'N/A'}<br>
-                    🛒 Items removed from cart<br>
-                    🔄 Redirecting to orders page...
-                </div>
-            `;
+            const username = currentUser.username || currentUser.email;
+            const paidBtn = document.getElementById("paidBtn");
+            const successBox = document.getElementById("successBox");
 
-            // Clear checkout data
-            localStorage.removeItem("checkout_" + username);
+            paidBtn.disabled = true;
+            paidBtn.textContent = "💾 Saving Order...";
 
-            // Redirect after short delay
-            setTimeout(() => {
-                console.log("➡️ Redirecting to orders page...");
-                window.location.href = "orders.html";
-            }, 2000);
-        } else {
-            console.error("❌ Backend returned error:", result.message);
-            showError("Failed to save order: " + (result.message || "Unknown error"));
+            // Build the order data with all customization details
+            const orderData = {
+                username: username,
+                items: checkout.items.map(item => ({
+                    name: item.name,
+                    price: parseFloat(item.price) || 0,
+                    quantity: parseInt(item.quantity) || 1,
+                    image: item.image || "",
+                    // Include all customization details
+                    gender: item.gender || "",
+                    tshirt_color: item.tshirt_color || "",
+                    tshirt_size: item.tshirt_size || "",
+                    tshirt_type: item.tshirt_type || "",
+                    placement_position: item.placement_position || "",
+                    design_side: item.design_side || "front",
+                    design_width: parseInt(item.design_width) || 0,
+                    design_height: parseInt(item.design_height) || 0,
+                    custom_requirements: item.custom_requirements || ""
+                })),
+                subtotal: subtotal,
+                tax: tax,
+                total: total,
+                shipping: checkout.shipping || {},
+                orderDate: new Date().toISOString(),
+                status: "confirmed"
+            };
+
+            console.log("📦 Sending order to backend:", orderData);
+
+            // Remove purchased items from cart FIRST
+            await removePurchasedItemsFromCart();
+
+            const response = await fetch("/saveOrder", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData)
+            });
+
+            console.log("📬 Response status:", response.status);
+            const result = await response.json();
+            console.log("📦 Backend response:", result);
+
+            if (result.success) {
+                console.log("✅ Order saved successfully. Showing success message...");
+
+                // Show success box
+                successBox.style.display = "block";
+                successBox.classList.add("success-animation");
+                successBox.innerHTML = `
+                    <div class="success-animation">
+                        ✅ <strong>Payment Successful!</strong><br>
+                        📦 Order ID: ${result.orderId || 'N/A'}<br>
+                        🛒 Items removed from cart<br>
+                        🔄 Redirecting to orders page...
+                    </div>
+                `;
+
+                // Clear checkout data
+                localStorage.removeItem("checkout_" + username);
+
+                // Redirect after short delay
+                setTimeout(() => {
+                    console.log("➡️ Redirecting to orders page...");
+                    window.location.href = "orders.html";
+                }, 2000);
+            } else {
+                console.error("❌ Backend returned error:", result.message);
+                showError("Failed to save order: " + (result.message || "Unknown error"));
+                paidBtn.disabled = false;
+                paidBtn.textContent = "✅ I Have Paid - Confirm Order";
+            }
+
+        } catch (error) {
+            console.error("💥 Error during handleOrderSave:", error);
+            showError("Error saving order: " + error.message);
+            const paidBtn = document.getElementById("paidBtn");
             paidBtn.disabled = false;
             paidBtn.textContent = "✅ I Have Paid - Confirm Order";
         }
-
-    } catch (error) {
-        console.error("💥 Error during handleOrderSave:", error);
-        showError("Error saving order: " + error.message);
-        const paidBtn = document.getElementById("paidBtn");
-        paidBtn.disabled = false;
-        paidBtn.textContent = "✅ I Have Paid - Confirm Order";
     }
-}
-// Remove purchased items from cart via backend - IMPROVED
-// Remove purchased items from cart via backend - FIXED FOR RENDER
-async function removePurchasedItemsFromCart() {
-    try {
-        if (!currentUser || !checkout || !checkout.items) {
-            console.log("❌ Cannot remove items: missing data");
-            return;
-        }
 
-        const username = currentUser.username || currentUser.email;
-        const purchasedItems = checkout.items.map(item => ({
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image,
-            // Existing customization fields
-            placement_position: item.placement_position || '',
-            design_side: item.design_side || 'front',
-            design_width: item.design_width || 0,
-            design_height: item.design_height || 0,
-            custom_requirements: item.custom_requirements || '',
-            // NEW customization fields
-            gender: item.gender || '',
-            tshirt_color: item.tshirt_color || '',
-            tshirt_size: item.tshirt_size || '',
-            tshirt_type: item.tshirt_type || ''
-        }));
-        
-        console.log("🗑️ Requesting backend to remove purchased items:", purchasedItems);
-
-        // FIX: Use relative URL instead of hardcoded localhost
-        const response = await fetch('/removeFromCart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: username,
-                items: purchasedItems
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log(`✅ Backend removed ${result.removed_count || result.message} purchased items`);
-            
-            // Update local storage - remove only purchased items, not entire cart
-            const cartKey = `cart_${username}`;
-            const currentCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-            
-            if (currentCart.length > 0) {
-                // Filter out the purchased items from current cart
-                const updatedCart = currentCart.filter(cartItem => {
-                    // Check if this cart item matches any purchased item with ALL fields
-                    return !purchasedItems.some(purchasedItem => 
-                        purchasedItem.name === cartItem.name &&
-                        purchasedItem.price === cartItem.price &&
-                        purchasedItem.quantity === cartItem.quantity &&
-                        purchasedItem.placement_position === (cartItem.placement_position || '') &&
-                        purchasedItem.design_side === (cartItem.design_side || 'front') &&
-                        purchasedItem.design_width === (cartItem.design_width || 0) &&
-                        purchasedItem.design_height === (cartItem.design_height || 0) &&
-                        purchasedItem.custom_requirements === (cartItem.custom_requirements || '') &&
-                        purchasedItem.gender === (cartItem.gender || '') &&
-                        purchasedItem.tshirt_color === (cartItem.tshirt_color || '') &&
-                        purchasedItem.tshirt_size === (cartItem.tshirt_size || '') &&
-                        purchasedItem.tshirt_type === (cartItem.tshirt_type || '')
-                    );
-                });
-                
-                // Save the updated cart back to localStorage
-                localStorage.setItem(cartKey, JSON.stringify(updatedCart));
-                console.log(`✅ Local storage updated: ${currentCart.length - updatedCart.length} items removed, ${updatedCart.length} items remaining`);
-            } else {
-                console.log("ℹ️ No items in local storage cart to update");
+    // Remove purchased items from cart via backend
+    async function removePurchasedItemsFromCart() {
+        try {
+            if (!currentUser || !checkout || !checkout.items) {
+                console.log("❌ Cannot remove items: missing data");
+                return;
             }
+
+            const username = currentUser.username || currentUser.email;
+            const purchasedItems = checkout.items.map(item => ({
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image,
+                gender: item.gender || '',
+                tshirt_color: item.tshirt_color || '',
+                tshirt_size: item.tshirt_size || '',
+                tshirt_type: item.tshirt_type || '',
+                placement_position: item.placement_position || '',
+                design_side: item.design_side || 'front',
+                design_width: item.design_width || 0,
+                design_height: item.design_height || 0,
+                custom_requirements: item.custom_requirements || ''
+            }));
             
-        } else {
-            console.error("❌ Backend failed to remove items:", result.message);
+            console.log("🗑️ Requesting backend to remove purchased items:", purchasedItems);
+
+            const response = await fetch("/removeFromCart", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: username,
+                    items: purchasedItems
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Backend removed ${result.removed_count || result.message} purchased items`);
+                
+                // Update local storage - remove only purchased items, not entire cart
+                const cartKey = `cart_${username}`;
+                const currentCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
+                
+                if (currentCart.length > 0) {
+                    // Filter out the purchased items from current cart
+                    const updatedCart = currentCart.filter(cartItem => {
+                        // Check if this cart item matches any purchased item
+                        return !purchasedItems.some(purchasedItem => 
+                            purchasedItem.name === cartItem.name &&
+                            purchasedItem.price === cartItem.price &&
+                            purchasedItem.quantity === cartItem.quantity &&
+                            purchasedItem.gender === (cartItem.gender || '') &&
+                            purchasedItem.tshirt_color === (cartItem.tshirt_color || '') &&
+                            purchasedItem.tshirt_size === (cartItem.tshirt_size || '') &&
+                            purchasedItem.tshirt_type === (cartItem.tshirt_type || '') &&
+                            purchasedItem.placement_position === (cartItem.placement_position || '') &&
+                            purchasedItem.design_side === (cartItem.design_side || 'front') &&
+                            purchasedItem.design_width === (cartItem.design_width || 0) &&
+                            purchasedItem.design_height === (cartItem.design_height || 0) &&
+                            purchasedItem.custom_requirements === (cartItem.custom_requirements || '')
+                        );
+                    });
+                    
+                    // Save the updated cart back to localStorage
+                    localStorage.setItem(cartKey, JSON.stringify(updatedCart));
+                    console.log(`✅ Local storage updated: ${currentCart.length - updatedCart.length} items removed, ${updatedCart.length} items remaining`);
+                } else {
+                    console.log("ℹ️ No items in local storage cart to update");
+                }
+                
+            } else {
+                console.error("❌ Backend failed to remove items:", result.message);
+                // Don't throw error - we don't want to block order success
+            }
+
+        } catch (error) {
+            console.error("❌ Error removing purchased items from cart:", error);
             // Don't throw error - we don't want to block order success
         }
-
-    } catch (error) {
-        console.error("❌ Error removing purchased items from cart:", error);
-        // Don't throw error - we don't want to block order success
     }
-}
-// Initialize the payment page
-// Initialize the payment page - FIXED VERSION
-async function initPayment() {
-    try {
-        console.log("🚀 Initializing payment page...");
-        
-        // Get current user
-        const userData = localStorage.getItem("currentUser");
-        if (!userData) {
-            showError("Please login first!");
-            setTimeout(() => window.location.href = "login.html", 2000);
-            return;
-        }
 
-        currentUser = JSON.parse(userData);
-        const username = currentUser.username || currentUser.email;
-        
-        if (!username) {
-            showError("Invalid user data. Please login again.");
-            setTimeout(() => window.location.href = "login.html", 2000);
-            return;
-        }
-
-        // Get checkout data - FIXED: Use correct localStorage key
-        const checkoutKey = "checkout_" + username;
-        const checkoutData = localStorage.getItem(checkoutKey);
-        
-        console.log("🔍 Looking for checkout data with key:", checkoutKey);
-        console.log("📦 Checkout data found:", checkoutData);
-        
-        if (!checkoutData) {
-            showError("No checkout data found. Please complete checkout first.");
-            setTimeout(() => window.location.href = "cart.html", 3000);
-            return;
-        }
-
-        checkout = JSON.parse(checkoutData);
-        
-        if (!checkout.items || checkout.items.length === 0) {
-            showError("No items in checkout. Please add items to cart first.");
-            setTimeout(() => window.location.href = "index.html", 3000);
-            return;
-        }
-
-        // DEBUG: Check what data we have
-        debugCheckoutData();
-
-        // Calculate totals from checkout data
-        subtotal = checkout.subtotal || checkout.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        tax = checkout.tax || subtotal * 0.18;
-        total = checkout.total || subtotal + tax;
-
-        console.log("📊 Order totals:", { subtotal, tax, total });
-
-        // Render order items
-        renderOrderItems();
-        updatePriceBreakdown();
-        setupEventListeners();
-
-        console.log("✅ Payment page initialized successfully");
-
-    } catch (error) {
-        console.error("❌ Initialization error:", error);
-        showError("Error loading payment page: " + error.message);
-    }
-}
-// Debug function to check what data is available
-// Debug function to check what data is available
-function debugCheckoutData() {
-    if (!checkout || !checkout.items) {
-        console.log("❌ DEBUG: No checkout data available");
-        return;
-    }
-    
-    console.log("🔍 DEBUG - Checkout items structure:");
-    console.log("📦 Full checkout object:", checkout);
-    
-    checkout.items.forEach((item, index) => {
-        console.log(`📦 Item ${index + 1}:`, {
-            name: item.name,
-            hasGender: 'gender' in item,
-            gender: item.gender,
-            hasTshirtColor: 'tshirt_color' in item,
-            tshirt_color: item.tshirt_color,
-            hasTshirtSize: 'tshirt_size' in item,
-            tshirt_size: item.tshirt_size,
-            hasTshirtType: 'tshirt_type' in item,
-            tshirt_type: item.tshirt_type,
-            allKeys: Object.keys(item)
-        });
-    });
-}
-
-// Call this in your initPayment function after checkout is loaded
-// Add this line after you set the checkout variable in initPayment:
-// debugCheckoutData();
-// Handle order confirmation - DEBUG VERSION
-// Handle order confirmation - FIXED VERSION
-// Handle order confirmation - FIXED FOR RENDER
-async function handleOrderSave() {
-    try {
-        console.log("🟢 handleOrderSave() triggered");
-
-        if (!checkout || !currentUser) {
-            showError("No order data found. Please try again.");
-            console.log("❌ Missing checkout or user data");
-            return;
-        }
-
-        const username = currentUser.username || currentUser.email;
-        const paidBtn = document.getElementById("paidBtn");
-        const successBox = document.getElementById("successBox");
-
-        paidBtn.disabled = true;
-        paidBtn.textContent = "💾 Saving Order...";
-
-        // Build the order data with ALL customization fields
-        const orderData = {
-            username: username,
-            items: checkout.items.map(item => ({
-                name: item.name,
-                price: parseFloat(item.price) || 0,
-                quantity: parseInt(item.quantity) || 1,
-                image: item.image || "",
-                // Existing customization fields
-                placement_position: item.placement_position || "",
-                design_side: item.design_side || "front",
-                design_width: parseInt(item.design_width) || 0,
-                design_height: parseInt(item.design_height) || 0,
-                custom_requirements: item.custom_requirements || "",
-                // NEW customization fields
-                gender: item.gender || "",
-                tshirt_color: item.tshirt_color || "",
-                tshirt_size: item.tshirt_size || "",
-                tshirt_type: item.tshirt_type || ""
-            })),
-            subtotal: subtotal,
-            tax: tax,
-            total: total
-        };
-
-        console.log("📦 Sending order to backend with items:", orderData.items);
-
-        // FIX: Use relative URL instead of hardcoded localhost
-        const response = await fetch("/saveOrder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderData)
-        });
-
-        console.log("📬 Response status:", response.status);
-        const result = await response.json();
-        console.log("📦 Backend response:", result);
-
-        if (result.success) {
-            console.log("✅ Order saved successfully. Now removing from cart...");
-            
-            // STEP 2: Only after order is saved, remove items from cart
-            try {
-                await removePurchasedItemsFromCart();
-                console.log("✅ Cart items removed successfully");
-            } catch (cartError) {
-                console.error("❌ Error removing cart items, but order was saved:", cartError);
-                // Don't throw error here - order is already saved
-            }
-
-            // Show success box
-            successBox.style.display = "block";
-            successBox.classList.add("success-animation");
-            successBox.innerHTML = `
-                <div class="success-animation">
-                    ✅ <strong>Payment Successful!</strong><br>
-                    📦 Order ID: ${result.order_id || 'N/A'}<br>
-                    🛒 Items removed from cart<br>
-                    🔄 Redirecting to orders page...
-                </div>
-            `;
-
-            // Clear checkout data
-            localStorage.removeItem("checkout_" + username);
-
-            // Redirect after short delay
-            setTimeout(() => {
-                console.log("➡️ Redirecting to orders page...");
-                window.location.href = "orders.html";
-            }, 2000);
-        } else {
-            console.error("❌ Backend returned error:", result.message);
-            showError("Failed to save order: " + (result.message || "Unknown error"));
-            paidBtn.disabled = false;
-            paidBtn.textContent = "✅ I Have Paid - Confirm Order";
-        }
-
-    } catch (error) {
-        console.error("💥 Error during handleOrderSave:", error);
-        showError("Error saving order: " + error.message);
-        const paidBtn = document.getElementById("paidBtn");
-        paidBtn.disabled = false;
-        paidBtn.textContent = "✅ I Have Paid - Confirm Order";
-    }
-}
     // Show error message
     function showError(message) {
       const orderContainer = document.getElementById("orderContainer");
@@ -883,14 +704,6 @@ async function handleOrderSave() {
     // Add some console styling for better debugging
     console.log('%c🎨 Fine Graphics Payment System', 'color: #007bff; font-size: 16px; font-weight: bold;');
     console.log('%c✅ Payment processing active', 'color: #28a745;');
-    // Add this to your handleOrderSave function in pay.html
-console.log("🔄 handleOrderSave - Step 1: Starting order save");
-console.log("📦 Order data:", orderData);
-console.log("👤 Username:", username);
-
-// After the fetch call, add:
-console.log("📬 API Response status:", response.status);
-console.log("📦 API Response data:", result);
   </script>
 </body>
 </html>

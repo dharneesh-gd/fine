@@ -1716,7 +1716,7 @@ def get_all_orders():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
-    
+        
 @app.route('/admin/orders/<int:order_id>', methods=['PUT'])
 def update_order_status(order_id):
     """Update order status in orders database"""
@@ -2158,8 +2158,6 @@ def debug_orders_detailed():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 # ==================== SERVER STARTUP ====================
 if __name__ == '__main__':
     # Initialize fresh databases
