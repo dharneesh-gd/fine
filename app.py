@@ -327,8 +327,12 @@ def update_cart_schema():
         
         # Add new columns if they don't exist
         new_columns = [
-            # Existing customization fields
-            ('tshirt_color', 'TEXT DEFAULT "white"'),
+            # T-Shirt customization fields
+            ('gender', 'TEXT DEFAULT ""'),
+            ('tshirt_color', 'TEXT DEFAULT ""'),
+            ('tshirt_size', 'TEXT DEFAULT ""'),
+            ('tshirt_type', 'TEXT DEFAULT ""'),
+            # Design positioning fields
             ('front_width', 'INTEGER DEFAULT 0'),
             ('front_height', 'INTEGER DEFAULT 0'),
             ('front_position_x', 'INTEGER DEFAULT 50'),
@@ -338,12 +342,7 @@ def update_cart_schema():
             ('back_height', 'INTEGER DEFAULT 0'),
             ('back_position_x', 'INTEGER DEFAULT 50'),
             ('back_position_y', 'INTEGER DEFAULT 50'),
-            ('back_rotation', 'INTEGER DEFAULT 0'),
-            ('design_side', 'TEXT DEFAULT "front"'),
-            # New customization fields
-            ('gender', 'TEXT DEFAULT ""'),
-            ('tshirt_size', 'TEXT DEFAULT ""'),
-            ('tshirt_type', 'TEXT DEFAULT ""')
+            ('back_rotation', 'INTEGER DEFAULT 0')
         ]
         
         for col_name, col_type in new_columns:
@@ -727,7 +726,7 @@ def get_existing_wishlist(username):
         return []
     
 def sync_cart_to_db(username, cart_items):
-    """Sync cart data to database WITH CUSTOMIZATION FIELDS"""
+    """Sync cart data to database WITH ALL CUSTOMIZATION FIELDS"""
     try:
         conn = sqlite3.connect(USERS_DB)
         cur = conn.cursor()
@@ -735,20 +734,43 @@ def sync_cart_to_db(username, cart_items):
         # Clear existing cart for this user
         cur.execute("DELETE FROM user_cart WHERE username=?", (username,))
         
-        # Save new cart items WITH CUSTOMIZATION FIELDS
+        # Save new cart items WITH ALL CUSTOMIZATION FIELDS
         saved_count = 0
         for item in cart_items:
             try:
                 cur.execute("""INSERT INTO user_cart (username, design_name, price, quantity, image_url, 
-                              placement_position, design_side, design_width, design_height, custom_requirements) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                            (username, item.get('name'), float(item.get('price', 0)), 
-                             int(item.get('quantity', 1)), item.get('image', ''),
+                              placement_position, design_side, design_width, design_height, custom_requirements,
+                              gender, tshirt_color, tshirt_size, tshirt_type,
+                              front_width, front_height, front_position_x, front_position_y, front_rotation,
+                              back_width, back_height, back_position_x, back_position_y, back_rotation) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (username, 
+                             item.get('name'), 
+                             float(item.get('price', 0)), 
+                             int(item.get('quantity', 1)), 
+                             item.get('image', ''),
                              item.get('placement_position', ''), 
                              item.get('design_side', 'front'),
                              int(item.get('design_width', 0)),
                              int(item.get('design_height', 0)),
-                             item.get('custom_requirements', '')))
+                             item.get('custom_requirements', ''),
+                             # T-Shirt customization
+                             item.get('gender', ''),
+                             item.get('tshirt_color', ''),
+                             item.get('tshirt_size', ''),
+                             item.get('tshirt_type', ''),
+                             # Design positioning
+                             int(item.get('front_width', 0)),
+                             int(item.get('front_height', 0)),
+                             int(item.get('front_position_x', 50)),
+                             int(item.get('front_position_y', 50)),
+                             int(item.get('front_rotation', 0)),
+                             int(item.get('back_width', 0)),
+                             int(item.get('back_height', 0)),
+                             int(item.get('back_position_x', 50)),
+                             int(item.get('back_position_y', 50)),
+                             int(item.get('back_rotation', 0))
+                            ))
                 saved_count += 1
             except Exception as e:
                 print(f"⚠ Failed to save cart item {item}: {e}")
@@ -763,7 +785,7 @@ def sync_cart_to_db(username, cart_items):
     except Exception as e:
         print(f"💥 CART SYNC ERROR: {str(e)}")
         return 0
-
+    
 def sync_wishlist_to_db(username, wishlist_items):
     """Sync wishlist data to database"""
     try:
@@ -1015,7 +1037,7 @@ def get_wishlist(username):
 
 @app.route('/saveOrder', methods=['POST'])
 def save_order():
-    """Save order to database with all customization fields - IMPROVED VERSION"""
+    """Save order to database with ALL customization fields - UPDATED VERSION"""
     try:
         print("📦 [saveOrder] Request received")
 
@@ -1041,7 +1063,7 @@ def save_order():
         conn = sqlite3.connect(ORDERS_DB)
         cur = conn.cursor()
 
-        # ✅ Ensure the base table exists with all required columns
+        # ✅ Ensure the table exists with ALL required columns
         cur.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1062,11 +1084,22 @@ def save_order():
                 tax REAL DEFAULT 0,
                 total REAL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                -- New customization fields
+                -- T-Shirt customization fields
                 gender TEXT DEFAULT '',
                 tshirt_color TEXT DEFAULT '',
                 tshirt_size TEXT DEFAULT '',
-                tshirt_type TEXT DEFAULT ''
+                tshirt_type TEXT DEFAULT '',
+                -- Design positioning fields
+                front_width INTEGER DEFAULT 0,
+                front_height INTEGER DEFAULT 0,
+                front_position_x INTEGER DEFAULT 50,
+                front_position_y INTEGER DEFAULT 50,
+                front_rotation INTEGER DEFAULT 0,
+                back_width INTEGER DEFAULT 0,
+                back_height INTEGER DEFAULT 0,
+                back_position_x INTEGER DEFAULT 50,
+                back_position_y INTEGER DEFAULT 50,
+                back_rotation INTEGER DEFAULT 0
             )
         """)
 
@@ -1078,7 +1111,17 @@ def save_order():
             "gender": "TEXT DEFAULT ''",
             "tshirt_color": "TEXT DEFAULT ''", 
             "tshirt_size": "TEXT DEFAULT ''",
-            "tshirt_type": "TEXT DEFAULT ''"
+            "tshirt_type": "TEXT DEFAULT ''",
+            "front_width": "INTEGER DEFAULT 0",
+            "front_height": "INTEGER DEFAULT 0",
+            "front_position_x": "INTEGER DEFAULT 50",
+            "front_position_y": "INTEGER DEFAULT 50",
+            "front_rotation": "INTEGER DEFAULT 0",
+            "back_width": "INTEGER DEFAULT 0",
+            "back_height": "INTEGER DEFAULT 0",
+            "back_position_x": "INTEGER DEFAULT 50",
+            "back_position_y": "INTEGER DEFAULT 50",
+            "back_rotation": "INTEGER DEFAULT 0"
         }
 
         for col, col_type in needed_columns.items():
@@ -1096,8 +1139,10 @@ def save_order():
                         order_id, username, design_name, price, quantity, image_url,
                         placement_position, design_side, design_width, design_height,
                         custom_requirements, order_date, status, subtotal, tax, total,
-                        gender, tshirt_color, tshirt_size, tshirt_type
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        gender, tshirt_color, tshirt_size, tshirt_type,
+                        front_width, front_height, front_position_x, front_position_y, front_rotation,
+                        back_width, back_height, back_position_x, back_position_y, back_rotation
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     order_id,
                     username,
@@ -1115,17 +1160,30 @@ def save_order():
                     subtotal,
                     tax,
                     total,
-                    # New customization fields
+                    # T-Shirt customization fields
                     item.get("gender", ""),
                     item.get("tshirt_color", ""),
                     item.get("tshirt_size", ""),
-                    item.get("tshirt_type", "")
+                    item.get("tshirt_type", ""),
+                    # Design positioning fields
+                    int(item.get("front_width", 0)),
+                    int(item.get("front_height", 0)),
+                    int(item.get("front_position_x", 50)),
+                    int(item.get("front_position_y", 50)),
+                    int(item.get("front_rotation", 0)),
+                    int(item.get("back_width", 0)),
+                    int(item.get("back_height", 0)),
+                    int(item.get("back_position_x", 50)),
+                    int(item.get("back_position_y", 50)),
+                    int(item.get("back_rotation", 0))
                 ))
                 saved_count += 1
-                print(f"✅ Saved order item: {item.get('name')}")
+                print(f"✅ Saved order item: {item.get('name')} with all customization fields")
                 
             except Exception as e:
                 print(f"⚠ Failed to save order item {item.get('name')}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         conn.commit()
@@ -1145,9 +1203,10 @@ def save_order():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
+    
 @app.route('/getOrders/<username>')
 def get_orders(username):
-    """Get user orders from orders database - returns grouped orders with all customization fields"""
+    """Get user orders from orders database - returns grouped orders with ALL customization fields"""
     try:
         print(f"📦 GET ORDERS REQUEST FOR: {username}")
 
@@ -1173,10 +1232,9 @@ def get_orders(username):
         # Map column name -> index
         col_index = {c[1]: i for i, c in enumerate(cols_info)}
 
-        # Build grouped orders by order_id (fallback to generated group id)
+        # Build grouped orders by order_id
         grouped = {}
         for row in rows:
-            # get order_id if present, else use created_at+id fallback
             order_id = row[col_index['order_id']] if 'order_id' in col_index and row[col_index['order_id']] else f"ORD_ROW_{row[col_index['id']]}"
 
             if order_id not in grouped:
@@ -1186,44 +1244,47 @@ def get_orders(username):
                     "status": row[col_index['status']] if 'status' in col_index else "Pending",
                     "items": [],
                     "subtotal": 0.0,
-                    "tax": None,   # keep None to detect missing
+                    "tax": None,
                     "total": None
                 }
 
-            # read fields defensively
-            price = None
-            quantity = None
-            try:
-                price = float(row[col_index['price']]) if 'price' in col_index and row[col_index['price']] is not None else 0.0
-            except:
-                price = 0.0
-            try:
-                quantity = int(row[col_index['quantity']]) if 'quantity' in col_index and row[col_index['quantity']] is not None else 1
-            except:
-                quantity = 1
+            # Read fields defensively
+            price = float(row[col_index['price']]) if 'price' in col_index and row[col_index['price']] is not None else 0.0
+            quantity = int(row[col_index['quantity']]) if 'quantity' in col_index and row[col_index['quantity']] is not None else 1
 
             item = {
-                "name": row[col_index['design_name']] if 'design_name' in col_index else (row[col_index['id']] if 'id' in col_index else "Item"),
+                "name": row[col_index['design_name']] if 'design_name' in col_index else "Item",
                 "price": price,
                 "quantity": quantity,
                 "image": row[col_index['image_url']] if 'image_url' in col_index else "",
-                # Existing customization fields
+                # Basic customization fields
                 "placement_position": row[col_index['placement_position']] if 'placement_position' in col_index else "",
                 "design_side": row[col_index['design_side']] if 'design_side' in col_index else "front",
                 "design_width": row[col_index['design_width']] if 'design_width' in col_index else 0,
                 "design_height": row[col_index['design_height']] if 'design_height' in col_index else 0,
                 "custom_requirements": row[col_index['custom_requirements']] if 'custom_requirements' in col_index else "",
-                # New customization fields
+                # T-Shirt customization fields
                 "gender": row[col_index['gender']] if 'gender' in col_index else "",
                 "tshirt_color": row[col_index['tshirt_color']] if 'tshirt_color' in col_index else "",
                 "tshirt_size": row[col_index['tshirt_size']] if 'tshirt_size' in col_index else "",
-                "tshirt_type": row[col_index['tshirt_type']] if 'tshirt_type' in col_index else ""
+                "tshirt_type": row[col_index['tshirt_type']] if 'tshirt_type' in col_index else "",
+                # Design positioning fields
+                "front_width": row[col_index['front_width']] if 'front_width' in col_index else 0,
+                "front_height": row[col_index['front_height']] if 'front_height' in col_index else 0,
+                "front_position_x": row[col_index['front_position_x']] if 'front_position_x' in col_index else 50,
+                "front_position_y": row[col_index['front_position_y']] if 'front_position_y' in col_index else 50,
+                "front_rotation": row[col_index['front_rotation']] if 'front_rotation' in col_index else 0,
+                "back_width": row[col_index['back_width']] if 'back_width' in col_index else 0,
+                "back_height": row[col_index['back_height']] if 'back_height' in col_index else 0,
+                "back_position_x": row[col_index['back_position_x']] if 'back_position_x' in col_index else 50,
+                "back_position_y": row[col_index['back_position_y']] if 'back_position_y' in col_index else 50,
+                "back_rotation": row[col_index['back_rotation']] if 'back_rotation' in col_index else 0
             }
 
             grouped[order_id]['items'].append(item)
             grouped[order_id]['subtotal'] += (price * quantity)
 
-            # if tax/total columns exist and have values, capture last non-null value
+            # Capture tax/total values
             if 'tax' in col_index and row[col_index['tax']] is not None:
                 try:
                     grouped[order_id]['tax'] = float(row[col_index['tax']])
@@ -1235,7 +1296,7 @@ def get_orders(username):
                 except:
                     pass
 
-        # finalize computed totals (if tax/total were missing, compute)
+        # Finalize computed totals
         orders_out = []
         for oid, g in grouped.items():
             subtotal_val = round(float(g['subtotal'] or 0.0), 2)
@@ -1252,7 +1313,7 @@ def get_orders(username):
                 "total": total_val
             })
 
-        # sort by date desc if date exists
+        # Sort by date desc
         try:
             orders_out.sort(key=lambda x: x.get('date') or "", reverse=True)
         except:
@@ -1264,8 +1325,7 @@ def get_orders(username):
     except Exception as e:
         print(f"💥 GET ORDERS ERROR: {e}")
         return jsonify({"success": False, "orders": [], "message": str(e)}), 500
-# ==================== DESIGN ROUTES ====================
-
+    
 @app.route('/getDesigns')
 def get_designs():
     """Get all designs for main website - SIMPLIFIED NO PRICING"""
@@ -2085,6 +2145,32 @@ def reset_designs_db():
     except Exception as e:
         print(f"💥 RESET DESIGNS DB ERROR: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/debug/orders-schema')
+def debug_orders_schema():
+    """Debug orders table schema"""
+    try:
+        conn = sqlite3.connect(ORDERS_DB)
+        cur = conn.cursor()
+        
+        # Check table structure
+        cur.execute("PRAGMA table_info(orders)")
+        columns = cur.fetchall()
+        
+        # Check sample data
+        cur.execute("SELECT * FROM orders LIMIT 1")
+        sample_row = cur.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            "table_columns": [{"name": col[1], "type": col[2], "default": col[4]} for col in columns],
+            "sample_row": sample_row,
+            "total_columns": len(columns)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/debug/databases')
 def debug_databases():

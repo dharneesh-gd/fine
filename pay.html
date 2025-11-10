@@ -517,31 +517,43 @@
             paidBtn.textContent = "💾 Saving Order...";
 
             // Build the order data with all customization details
-            const orderData = {
-                username: username,
-                items: checkout.items.map(item => ({
-                    name: item.name,
-                    price: parseFloat(item.price) || 0,
-                    quantity: parseInt(item.quantity) || 1,
-                    image: item.image || "",
-                    // Include all customization details
-                    gender: item.gender || "",
-                    tshirt_color: item.tshirt_color || "",
-                    tshirt_size: item.tshirt_size || "",
-                    tshirt_type: item.tshirt_type || "",
-                    placement_position: item.placement_position || "",
-                    design_side: item.design_side || "front",
-                    design_width: parseInt(item.design_width) || 0,
-                    design_height: parseInt(item.design_height) || 0,
-                    custom_requirements: item.custom_requirements || ""
-                })),
-                subtotal: subtotal,
-                tax: tax,
-                total: total,
-                shipping: checkout.shipping || {},
-                orderDate: new Date().toISOString(),
-                status: "confirmed"
-            };
+            // In handleOrderSave function in pay.html
+const orderData = {
+    username: username,
+    items: checkout.items.map(item => ({
+        name: item.name,
+        price: parseFloat(item.price) || 0,
+        quantity: parseInt(item.quantity) || 1,
+        image: item.image || "",
+        // Include ALL customization details
+        gender: item.gender || "",
+        tshirt_color: item.tshirt_color || "",
+        tshirt_size: item.tshirt_size || "",
+        tshirt_type: item.tshirt_type || "",
+        placement_position: item.placement_position || "",
+        design_side: item.design_side || "front",
+        design_width: parseInt(item.design_width) || 0,
+        design_height: parseInt(item.design_height) || 0,
+        custom_requirements: item.custom_requirements || "",
+        // Design positioning fields
+        front_width: parseInt(item.front_width) || 0,
+        front_height: parseInt(item.front_height) || 0,
+        front_position_x: parseInt(item.front_position_x) || 50,
+        front_position_y: parseInt(item.front_position_y) || 50,
+        front_rotation: parseInt(item.front_rotation) || 0,
+        back_width: parseInt(item.back_width) || 0,
+        back_height: parseInt(item.back_height) || 0,
+        back_position_x: parseInt(item.back_position_x) || 50,
+        back_position_y: parseInt(item.back_position_y) || 50,
+        back_rotation: parseInt(item.back_rotation) || 0
+    })),
+    subtotal: subtotal,
+    tax: tax,
+    total: total,
+    shipping: checkout.shipping || {},
+    orderDate: new Date().toISOString(),
+    status: "confirmed"
+};
 
             console.log("📦 Sending order to backend:", orderData);
 
