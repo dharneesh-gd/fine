@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, send_from_directory
 import sqlite3
 import os
@@ -11,10 +12,15 @@ CORS(app)  # Enable CORS for all routes
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Use different database filenames to avoid locks
-USERS_DB = "users_new.db"
-ORDERS_DB = "orders_new.db"
-ADMIN_DB = "admin_new.db"
-DESIGNS_DB = "designs_fresh.db"
+
+# Use /tmp so Render allows writing
+DB_PATH = "/tmp"
+
+USERS_DB = os.path.join(DB_PATH, "users_new.db")
+ORDERS_DB = os.path.join(DB_PATH, "orders_new.db")
+ADMIN_DB = os.path.join(DB_PATH, "admin_new.db")
+DESIGNS_DB = os.path.join(DB_PATH, "designs_fresh.db")
+
 
 # ==================== DATABASE INITIALIZATION ====================
 
