@@ -592,7 +592,26 @@ if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
             border-top-color: #333;
             margin-bottom: -5px;
         }
+/* Enhanced Color Dropdown Styles */
+.color-dropdown option {
+    padding: 10px 15px;
+    font-size: 14px;
+    font-weight: 500;
+}
 
+.color-dropdown {
+    font-size: 14px;
+    padding: 10px 15px;
+}
+
+/* Style the dropdown arrow */
+.color-dropdown {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
         .section-title {
             text-align: center;
             font-size: 2.5rem;
@@ -2819,27 +2838,28 @@ function switchPreviewImage(imageSrc, element) {
                         </div>
 
                         <!-- Color Selection - DROPDOWN -->
-                        <div class="option-group">
-                            <label for="tshirtColor">T-Shirt Color <span class="customization-required">*</span></label>
-                            <select id="tshirtColor" class="form-control" required>
-                                <option value="">Select Color</option>
-                                <option value="black">Black</option>
-                                <option value="white">White</option>
-                                <option value="blue">Blue</option>
-                                <option value="red">Red</option>
-                                <option value="green">Green</option>
-                                <option value="yellow">Yellow</option>
-                                <option value="maroon">Maroon</option>
-                                <option value="navy">Navy</option>
-                            </select>
-                        </div>
+                       <!-- Enhanced Color Selection -->
+<div class="option-group">
+    <label for="tshirtColor">T-Shirt Color <span class="customization-required">*</span></label>
+    <select id="tshirtColor" class="form-control color-dropdown" required>
+        <option value="">Select Color</option>
+        <option value="black" style="color: #000000; background: #f8f9fa;">⬤ Black</option>
+        <option value="white" style="color: #ffffff; background: #000000;">⬤ White</option>
+        <option value="blue" style="color: #007bff; background: #f8f9fa;">⬤ Blue</option>
+        <option value="red" style="color: #dc3545; background: #f8f9fa;">⬤ Red</option>
+        <option value="green" style="color: #28a745; background: #f8f9fa;">⬤ Green</option>
+        <option value="yellow" style="color: #ffc107; background: #f8f9fa;">⬤ Yellow</option>
+        <option value="maroon" style="color: #800000; background: #f8f9fa;">⬤ Maroon</option>
+        <option value="navy" style="color: #000080; background: #f8f9fa;">⬤ Navy</option>
+    </select>
+</div>
 
                         <!-- Size Selection -->
                         <div class="option-group">
                             <label for="tshirtSize">Size <span class="customization-required">*</span></label>
                             <div class="size-options" id="sizeOptions">
                                 <div class="size-option" data-size="S" onclick="selectSize(this)">S</div>
-                                <div class="size-option selected" data-size="M" onclick="selectSize(this)">M</div>
+                                <div class="size-option" data-size="M" onclick="selectSize(this)">M</div>
                                 <div class="size-option" data-size="L" onclick="selectSize(this)">L</div>
                                 <div class="size-option" data-size="XL" onclick="selectSize(this)">XL</div>
                                 <div class="size-option" data-size="2XL" onclick="selectSize(this)">2XL</div>
