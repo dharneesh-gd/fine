@@ -16,6 +16,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Use /tmp so Render allows writing
 DB_PATH = "/tmp"
 
+if not os.path.exists(DB_PATH):
+    os.makedirs(DB_PATH, exist_ok=True)
+
+print(f"✅ Using writable DB directory: {DB_PATH}")
+
 USERS_DB = os.path.join(DB_PATH, "users_new.db")
 ORDERS_DB = os.path.join(DB_PATH, "orders_new.db")
 ADMIN_DB = os.path.join(DB_PATH, "admin_new.db")
@@ -91,7 +96,7 @@ def init_users_db():
                 return False
 
 def init_orders_db():
-    """Initialize separate orders database"""
+    """Initialize separate orders database - UPDATED WITH order_id"""
     max_retries = 3
     retry_delay = 1
     
@@ -100,9 +105,10 @@ def init_orders_db():
             conn = sqlite3.connect(ORDERS_DB)
             cur = conn.cursor()
             
-            # Orders table - UPDATED WITH CUSTOMIZATION FIELDS
+            # Orders table - UPDATED WITH order_id
             cur.execute("""CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id TEXT,  # ADD THIS LINE
                 username TEXT,
                 design_name TEXT,
                 price REAL,
@@ -115,7 +121,26 @@ def init_orders_db():
                 custom_requirements TEXT DEFAULT '',
                 order_date TEXT,
                 status TEXT DEFAULT 'Pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                subtotal REAL DEFAULT 0,
+                tax REAL DEFAULT 0,
+                total REAL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                -- T-Shirt customization fields
+                gender TEXT DEFAULT '',
+                tshirt_color TEXT DEFAULT '',
+                tshirt_size TEXT DEFAULT '',
+                tshirt_type TEXT DEFAULT '',
+                -- Design positioning fields
+                front_width INTEGER DEFAULT 0,
+                front_height INTEGER DEFAULT 0,
+                front_position_x INTEGER DEFAULT 50,
+                front_position_y INTEGER DEFAULT 50,
+                front_rotation INTEGER DEFAULT 0,
+                back_width INTEGER DEFAULT 0,
+                back_height INTEGER DEFAULT 0,
+                back_position_x INTEGER DEFAULT 50,
+                back_position_y INTEGER DEFAULT 50,
+                back_rotation INTEGER DEFAULT 0
             )""")
             
             conn.commit()
@@ -130,7 +155,6 @@ def init_orders_db():
             else:
                 print(f"💥 Failed to initialize orders database after {max_retries} attempts: {e}")
                 return False
-
 def init_admin_db():
     """Initialize admin database"""
     max_retries = 3
@@ -364,7 +388,6 @@ def update_cart_schema():
         print(f"💥 Error updating cart schema: {str(e)}")
         return False
     
-# Update the init_databases function to include schema updates
 def init_databases():
     """Initialize all databases - FIXED VERSION"""
     print("🔄 Initializing databases with new filenames...")
@@ -392,6 +415,7 @@ def init_databases():
     update_designs_schema()
     update_orders_schema()
     update_cart_schema()
+    update_orders_schema_with_order_id()  # ADD THIS LINE
     
     if all_success:
         print("🎉 All databases initialization completed!")
@@ -399,7 +423,6 @@ def init_databases():
         print("⚠ Some databases failed to initialize!")
     
     return all_success
-
 @app.route('/removeFromCart', methods=['POST'])
 def remove_from_cart():
     """Remove specific items from user's cart - FLEXIBLE VERSION"""
@@ -876,7 +899,29 @@ def get_user_data(username):
         return jsonify({"success": False, "message": str(e)}), 500
 
 # ==================== CART ROUTES ====================
-
+def update_orders_schema_with_order_id():
+    """Update orders table to include order_id column"""
+    try:
+        conn = sqlite3.connect(ORDERS_DB)
+        cur = conn.cursor()
+        
+        # Check if order_id column exists
+        cur.execute("PRAGMA table_info(orders)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        # Add order_id column if it doesn't exist
+        if 'order_id' not in columns:
+            cur.execute("ALTER TABLE orders ADD COLUMN order_id TEXT")
+            print("✅ Added order_id column to orders table")
+        
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"💥 Error updating orders schema with order_id: {str(e)}")
+        return False
+    
 @app.route('/saveCart', methods=['POST'])
 def save_cart():
     try:
