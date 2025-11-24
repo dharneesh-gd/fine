@@ -4,43 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fine Graphics - Premium Design Services</title>
-<script>
-if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-  const overlay = document.createElement('div');
-  overlay.innerHTML = `
-    <div id="desktop-guide" style="
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85);
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      text-align: center;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-    ">
-      <h2 style="color:#ffd700; margin-bottom:10px;">Best Viewed in Desktop Mode 💻</h2>
-      <p style="font-size:16px; margin-bottom:20px;">
-        For the best experience, please enable <b>Desktop Site</b> in your browser.
-      </p>
-      <div style="background:white; color:black; padding:10px 15px; border-radius:8px; text-align:left; max-width:280px;">
-        <ol>
-          <li>Tap the <b>⋮</b> (three dots) menu in your browser.</li>
-          <li>Check <b>Desktop site</b>.</li>
-          <li>Reload the page.</li>
-        </ol>
-      </div>
-      <button style="margin-top:25px; background:#667eea; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="document.getElementById('desktop-guide').remove()">
-        Got it
-      </button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-}
-</script>
 
     <style>
         /* fix the ui suitable for mobile*/
@@ -1542,6 +1505,53 @@ header {
         ::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(45deg, #764ba2, #667eea);
         }
+
+        /* ========== MOBILE RESPONSIVE STYLES ========== */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .nav-container { flex-wrap: wrap; padding: 0 15px !important; }
+            .logo { font-size: 1.4rem !important; }
+            nav { display: none; width: 100%; order: 3; margin-top: 1rem; }
+            nav.show { display: block; }
+            nav ul { flex-direction: column !important; gap: 0.5rem !important; }
+            nav ul li { width: 100%; text-align: center; }
+            nav ul li a { display: block; padding: 0.75rem !important; background: rgba(255, 255, 255, 0.1); border-radius: 5px; }
+            .mobile-menu-toggle { display: block; }
+            .auth-buttons { gap: 0.5rem !important; }
+            .auth-buttons .btn { padding: 0.5rem 0.8rem !important; font-size: 0.85rem !important; }
+            .container, section { padding: 1.5rem 15px !important; }
+            .modal-content { width: 95% !important; max-width: 95% !important; margin: 1rem auto !important; padding: 1.5rem !important; }
+            .form-control { font-size: 14px !important; }
+            .btn { padding: 0.7rem 1.5rem !important; font-size: 0.9rem !important; }
+            table { font-size: 0.85rem !important; }
+            th, td { padding: 0.5rem !important; }
+            h1 { font-size: 1.8rem !important; }
+            h2 { font-size: 1.5rem !important; }
+            h3 { font-size: 1.2rem !important; }
+        }
+
+        @media (max-width: 480px) {
+            .logo { font-size: 1.2rem !important; }
+            h1 { font-size: 1.5rem !important; }
+            h2 { font-size: 1.3rem !important; }
+            .btn { padding: 0.6rem 1.2rem !important; font-size: 0.85rem !important; }
+            .form-control { font-size: 13px !important; padding: 0.6rem !important; }
+            .modal-content { padding: 1rem !important; }
+            table { font-size: 0.75rem !important; }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .btn, button, a, input, select, textarea { min-height: 44px; }
+        }
     </style>
 </head>
 <body>
@@ -1549,7 +1559,8 @@ header {
     <header>
         <div class="nav-container">
             <div class="logo">Fine<span>Graphics</span></div>
-            <nav>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">☰</button>
+            <nav id="mobileNav">
                 <ul>
                     <li><a href="#home">Home</a></li>
                     <li><a href="#designs">Designs</a></li>
@@ -3224,4 +3235,38 @@ document.addEventListener('click', function(event) {
         </div>
     </div>
 </body>
-</html>
+</html><script>
+// Mobile menu toggle functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileNav = document.getElementById('mobileNav');
+    
+    if (mobileMenuToggle && mobileNav) {
+        mobileMenuToggle.addEventListener('click', function() {
+            mobileNav.classList.toggle('show');
+            const isExpanded = mobileNav.classList.contains('show');
+            this.setAttribute('aria-expanded', isExpanded);
+            this.textContent = isExpanded ? '✕' : '☰';
+        });
+
+        // Close mobile menu when clicking on a link
+        const navLinks = mobileNav.querySelectorAll('a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                mobileNav.classList.remove('show');
+                mobileMenuToggle.textContent = '☰';
+                mobileMenuToggle.setAttribute('aria-expanded', 'false');
+            });
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!mobileNav.contains(event.target) && !mobileMenuToggle.contains(event.target)) {
+                mobileNav.classList.remove('show');
+                mobileMenuToggle.textContent = '☰';
+                mobileMenuToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+});
+</script>
