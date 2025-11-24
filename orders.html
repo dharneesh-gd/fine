@@ -29,6 +29,8 @@
             color: white;
             padding: 1rem 0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .nav-container {
@@ -139,6 +141,7 @@
             text-align: center;
             margin-bottom: 2rem;
             color: #333;
+            animation: slideInFromTop 0.8s ease-out;
         }
 
         /* Orders List */
@@ -149,15 +152,21 @@
         }
 
         .order-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-radius: 10px;
             padding: 2rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 0.6s ease-out;
+            animation-fill-mode: both;
         }
 
         .order-card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
         }
 
         .order-header {
@@ -166,7 +175,7 @@
             align-items: center;
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
-            border-bottom: 2px solid #f8f9fa;
+            border-bottom: 2px solid rgba(248, 249, 250, 0.5);
         }
 
         .order-info h4 {
@@ -185,25 +194,32 @@
             border-radius: 20px;
             font-weight: bold;
             font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+
+        .order-status:hover {
+            transform: scale(1.05);
         }
 
         .order-status.pending {
-            background: #fff3cd;
+            background: rgba(255, 243, 205, 0.9);
             color: #856404;
         }
 
         .order-status.processing {
-            background: #cce7ff;
+            background: rgba(204, 231, 255, 0.9);
             color: #004085;
         }
 
         .order-status.completed {
-            background: #d4edda;
+            background: rgba(212, 237, 218, 0.9);
             color: #155724;
         }
 
         .order-status.ordered {
-            background: #e2e3e5;
+            background: rgba(226, 227, 229, 0.9);
             color: #383d41;
         }
 
@@ -220,9 +236,17 @@
             align-items: flex-start;
             gap: 1rem;
             padding: 1rem;
-            background: #f8f9fa;
+            background: rgba(248, 249, 250, 0.7);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
             border-radius: 8px;
-            border: 1px solid #e9ecef;
+            border: 1px solid rgba(233, 236, 239, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .order-item:hover {
+            background: rgba(248, 249, 250, 0.9);
+            transform: translateX(5px);
         }
 
         .order-item-image {
@@ -231,6 +255,11 @@
             object-fit: cover;
             border-radius: 6px;
             flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .order-item:hover .order-item-image {
+            transform: scale(1.05);
         }
 
         .order-item-details {
@@ -253,79 +282,94 @@
             font-weight: bold;
             color: #667eea;
             flex-shrink: 0;
+            transition: all 0.3s ease;
         }
 
-        /* Customization Details */
-        /* Customization Details - IMPROVED */
-/* Customization Details - COMPACT VERSION */
-.customization-details {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
-    border-radius: 6px;
-    border-left: 3px solid #667eea;
-    border: 1px solid #cce7ff;
-}
+        .order-item:hover .order-item-total {
+            transform: scale(1.1);
+        }
 
-.customization-details small {
-    display: block;
-    margin-bottom: 0.2rem;
-    color: #2c5282;
-    font-size: 0.75rem;
-    line-height: 1.3;
-    padding: 0.1rem 0;
-    font-weight: 500;
-}
+        /* Customization Details - COMPACT VERSION */
+        .customization-details {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: linear-gradient(135deg, rgba(240, 248, 255, 0.8) 0%, rgba(230, 243, 255, 0.8) 100%);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            border: 1px solid rgba(204, 231, 255, 0.5);
+            animation: slideIn 0.4s ease-out;
+        }
 
-.customization-details small:last-child {
-    margin-bottom: 0;
-}
+        .customization-details small {
+            display: block;
+            margin-bottom: 0.2rem;
+            color: #2c5282;
+            font-size: 0.75rem;
+            line-height: 1.3;
+            padding: 0.1rem 0;
+            font-weight: 500;
+        }
 
-/* Make it even more compact on mobile */
-@media (max-width: 768px) {
-    .customization-details {
-        padding: 0.4rem;
-    }
-    
-    .customization-details small {
-        font-size: 0.7rem;
-    }
-}
+        .customization-details small:last-child {
+            margin-bottom: 0;
+        }
 
-.customization-details small:not(:last-child) {
-    border-bottom: 1px solid #bee3f8;
-    padding-bottom: 0.3rem;
-}
+        /* Make it even more compact on mobile */
+        @media (max-width: 768px) {
+            .customization-details {
+                padding: 0.4rem;
+            }
+            
+            .customization-details small {
+                font-size: 0.7rem;
+            }
+        }
 
-/* Customization Icons */
-.customization-details small::before {
-    margin-right: 0.5rem;
-    font-weight: bold;
-}
+        .customization-details small:not(:last-child) {
+            border-bottom: 1px solid rgba(190, 227, 248, 0.5);
+            padding-bottom: 0.3rem;
+        }
 
-/* You can add specific icons for each field type if needed */
+        /* Customization Icons */
+        .customization-details small::before {
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+
         /* Order Footer */
         .order-footer {
             display: flex;
             justify-content: flex-end;
             align-items: center;
             padding-top: 1rem;
-            border-top: 2px solid #e9ecef;
+            border-top: 2px solid rgba(233, 236, 239, 0.5);
         }
 
         .order-total {
             font-size: 1.3rem;
             font-weight: bold;
             color: #333;
+            transition: all 0.3s ease;
+        }
+
+        .order-card:hover .order-total {
+            transform: scale(1.05);
+            color: #667eea;
         }
 
         /* Empty Orders */
         .empty-orders {
             text-align: center;
             padding: 4rem 2rem;
-            background: white;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 0.8s ease-out;
         }
 
         .empty-orders h3 {
@@ -346,11 +390,32 @@
             text-decoration: none;
             border-radius: 8px;
             font-weight: bold;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            position: relative;
+            overflow: hidden;
         }
 
         .btn-primary:hover {
             background: #5a6fd8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
         }
 
         .btn-debug {
@@ -362,11 +427,15 @@
             font-weight: bold;
             cursor: pointer;
             margin-left: 1rem;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
         }
 
         .btn-debug:hover {
             background: #e0a800;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
         }
 
         /* Loading and Error */
@@ -375,25 +444,90 @@
             padding: 3rem;
             color: #666;
             font-size: 1.1rem;
+            animation: pulse 1.5s infinite;
         }
 
         .error {
             text-align: center;
             padding: 2rem;
-            background: #ff6b6b;
+            background: rgba(255, 107, 107, 0.9);
             color: white;
             border-radius: 10px;
             margin: 2rem 0;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            animation: shake 0.5s ease-in-out;
         }
 
         /* Footer */
         footer {
-            background: #333;
+            background: rgba(51, 51, 51, 0.9);
             color: white;
             text-align: center;
             padding: 2rem;
             margin-top: 4rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
+
+        /* ANIMATIONS */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInFromTop {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Stagger animation for multiple order cards */
+        .order-card:nth-child(1) { animation-delay: 0.1s; }
+        .order-card:nth-child(2) { animation-delay: 0.2s; }
+        .order-card:nth-child(3) { animation-delay: 0.3s; }
+        .order-card:nth-child(4) { animation-delay: 0.4s; }
+        .order-card:nth-child(5) { animation-delay: 0.5s; }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -531,7 +665,6 @@
     }
 }
 
-        // Render orders function - IMPROVED VERSION
         // Render orders function - UPDATED WITH GST DISPLAY
 function renderOrders(orders) {
     console.log('📦 Orders data for rendering:', orders);
@@ -605,8 +738,6 @@ function renderOrders(orders) {
 }
 
 
-// Render individual order item - REUSABLE FUNCTION
-// Render individual order item - UPDATED WITH ALL CUSTOMIZATION FIELDS
 // Render individual order item - COMPACT VERSION
 function renderOrderItem(item) {
     const itemName = item.name || item.design_name || 'Unknown Design';
@@ -695,7 +826,6 @@ function renderOrderItem(item) {
             `;
         }
 
-        // Show no orders message
         // Show no orders message
 function showNoOrders() {
     document.getElementById('ordersContainer').innerHTML = `
